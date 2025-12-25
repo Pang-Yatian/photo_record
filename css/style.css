@@ -1139,3 +1139,41 @@ body {
     left: 50%;
     bottom: 0;
 }
+
+/* Zoom Controls */
+.zoom-controls {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 500;
+}
+
+.zoom-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(26, 26, 46, 0.9);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+    background: rgba(0, 212, 170, 0.3);
+    border-color: #00d4aa;
+}
+
+.zoom-btn:active {
+    transform: scale(0.95);
+}

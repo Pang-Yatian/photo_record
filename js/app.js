@@ -57,7 +57,7 @@ const IDLE_TIMEOUT = 2000;
 // Start auto-rotate animation (faster speed)
 viewer.clock.onTick.addEventListener(() => {
     if (autoRotate && !isHoveringMarker && Date.now() - lastInteraction > IDLE_TIMEOUT) {
-        viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.005);
+        viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.0025);
     }
 });
 
@@ -146,12 +146,11 @@ function highlightCountries() {
         } else {
             entity.polygon.material = Cesium.Color.TRANSPARENT;
         }
-        // Disable outlines to avoid rendering errors
         entity.polygon.outline = false;
     }
 }
 
-// Create marker for a city (hide when on back of globe)
+// Create marker for a city
 function createMarker(visit, zIndex = 100) {
     const entity = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(visit.lng, visit.lat),
@@ -632,6 +631,15 @@ gallery.addEventListener('touchend', (e) => {
     if (Math.abs(diff) > 50) {
         navigateGallery(diff > 0 ? 1 : -1);
     }
+});
+
+// Zoom controls
+document.getElementById('zoom-in').addEventListener('click', () => {
+    viewer.camera.zoomIn(viewer.camera.positionCartographic.height * 0.3);
+});
+
+document.getElementById('zoom-out').addEventListener('click', () => {
+    viewer.camera.zoomOut(viewer.camera.positionCartographic.height * 0.5);
 });
 
 // Initialize
