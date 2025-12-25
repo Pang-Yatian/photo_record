@@ -1,23 +1,81 @@
-// Public visualization page
+// Public visualization page with 3D Cesium Globe
 
-// Initialize map - global view
-const map = L.map('map', {
-    center: [20, 0],
-    zoom: 1.5,
-    minZoom: 1,
-    maxZoom: 18,
-    worldCopyJump: true
+// Set Cesium base URL for assets
+window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/';
+
+// Initialize Cesium viewer
+const viewer = new Cesium.Viewer('map', {
+    baseLayerPicker: false,
+    geocoder: false,
+    homeButton: false,
+    navigationHelpButton: false,
+    sceneModePicker: false,
+    timeline: false,
+    animation: false,
+    fullscreenButton: false,
+    vrButton: false,
+    infoBox: false,
+    selectionIndicator: false,
+    shadows: false,
+    shouldAnimate: true,
 });
 
-// Add dark tile layer
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-}).addTo(map);
+// Dark theme setup
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#1a1a2e');
+viewer.scene.skyBox = undefined;
+viewer.scene.sun.show = false;
+viewer.scene.moon.show = false;
+viewer.scene.skyAtmosphere.show = false;
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1a2e');
+
+// Use CartoDB dark tiles with English labels
+viewer.imageryLayers.removeAll();
+viewer.imageryLayers.addImageryProvider(
+    new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c', 'd'],
+        credit: 'Map tiles by CartoDB'
+    })
+);
+
+// Set initial camera to GMT+8 timezone, balanced view for both hemispheres
+viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(120, 10, 16000000),
+    orientation: {
+        heading: 0,
+        pitch: -Cesium.Math.PI_OVER_TWO,
+        roll: 0
+    }
+});
+
+// Auto-rotate state
+let autoRotate = true;
+let isHoveringMarker = false;
+let lastInteraction = Date.now();
+const IDLE_TIMEOUT = 2000;
+
+// Start auto-rotate animation (faster speed)
+viewer.clock.onTick.addEventListener(() => {
+    if (autoRotate && !isHoveringMarker && Date.now() - lastInteraction > IDLE_TIMEOUT) {
+        viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.005);
+    }
+});
+
+// Interaction listeners to pause auto-rotate
+viewer.scene.canvas.addEventListener('mousedown', () => {
+    autoRotate = false;
+    lastInteraction = Date.now();
+});
+viewer.scene.canvas.addEventListener('mouseup', () => {
+    autoRotate = true;
+    lastInteraction = Date.now();
+});
+viewer.scene.canvas.addEventListener('wheel', () => {
+    lastInteraction = Date.now();
+});
 
 // State
-let countriesLayer = null;
+let countriesDataSource = null;
 let visitedCountryCodes = new Set();
 let visits = [];
 let markers = [];
@@ -26,10 +84,10 @@ let markers = [];
 let currentVisit = null;
 let currentPhotoIndex = 0;
 let sortedPhotoIndices = [];
-let filteredPhotos = []; // Photos to display (filtered or all)
-let allPhotosGlobal = []; // All photos from all cities, sorted by date
-let isGlobalGallery = false; // true = timeline mode (all photos), false = city mode
-let previousMapView = null; // Store map view before gallery opens
+let filteredPhotos = [];
+let allPhotosGlobal = [];
+let isGlobalGallery = false;
+let previousCameraState = null;
 
 // DOM elements
 const hoverPreview = document.getElementById('hover-preview');
@@ -45,7 +103,7 @@ function getFlagUrl(countryCode) {
     return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 }
 
-// Get thumbnail URL (falls back to original if thumb doesn't exist)
+// Get thumbnail URL
 function getThumbUrl(photoPath) {
     const parts = photoPath.split('/');
     const folder = parts[0];
@@ -54,68 +112,36 @@ function getThumbUrl(photoPath) {
     return `photos/thumbs/${folder}/${thumbFilename}`;
 }
 
-// Load countries GeoJSON
+// Skip country GeoJSON - just use the globe imagery with markers
 async function loadCountries() {
-    try {
-        const response = await fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson');
-        const data = await response.json();
-
-        countriesLayer = L.geoJSON(data, {
-            style: () => ({
-                fillColor: 'transparent',
-                fillOpacity: 0,
-                color: 'transparent',
-                weight: 0
-            }),
-            onEachFeature: (feature, layer) => {
-                layer.feature = feature;
-            }
-        }).addTo(map);
-
-    } catch (error) {
-        console.error('Failed to load countries:', error);
-    }
+    // Country polygons disabled due to Cesium rendering issues
+    // The Natural Earth imagery already shows country borders
 }
 
-// Highlight visited countries
+// No-op since we're not using country polygons
 function highlightCountries() {
-    if (!countriesLayer) return;
+    // Disabled - using globe imagery instead
+}
 
-    countriesLayer.eachLayer(layer => {
-        const props = layer.feature.properties;
-        const code = props['ISO3166-1-Alpha-2'] || props.ISO_A2 || props.iso_a2;
-        if (visitedCountryCodes.has(code)) {
-            layer.setStyle({
-                fillColor: '#00d4aa',
-                fillOpacity: 0.25,
-                color: '#00d4aa',
-                weight: 1
-            });
+// Create marker for a city (hide when on back of globe)
+function createMarker(visit, zIndex = 100) {
+    const entity = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(visit.lng, visit.lat),
+        point: {
+            pixelSize: 14,
+            color: Cesium.Color.fromCssColorString('#00d4aa'),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2,
+            // Remove disableDepthTestDistance so markers hide behind globe
+        },
+        properties: {
+            visit: visit,
+            zIndex: zIndex
         }
     });
-}
 
-// Create marker with hover preview
-function createMarker(visit, zIndex = 100) {
-    const icon = L.divIcon({
-        className: 'city-marker',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-    });
-
-    const marker = L.marker([visit.lat, visit.lng], { icon, zIndexOffset: zIndex })
-        .addTo(map);
-
-    // Hover preview
-    marker.on('mouseover', (e) => showHoverPreview(e, visit));
-    marker.on('mouseout', hideHoverPreview);
-    marker.on('click', () => {
-        previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
-        openCityGallery(visit);
-    });
-
-    markers.push({ marker, visit });
-    return marker;
+    markers.push({ entity, visit });
+    return entity;
 }
 
 // Sort photos by date (newest first)
@@ -130,10 +156,8 @@ function getSortedPhotos(photos) {
     });
 }
 
-// Show hover preview with max 9 images (sorted by date)
-// If +1 remaining: show 9th image normally
-// If +2 or more: show blurred 9th image with +N overlay
-function showHoverPreview(e, visit) {
+// Show hover preview with thumbnails
+function showHoverPreview(screenPosition, visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
     const previewTitle = hoverPreview.querySelector('.hover-preview-title');
@@ -146,33 +170,32 @@ function showHoverPreview(e, visit) {
     const photos = sortedPhotos.slice(0, Math.min(maxVisible, sortedPhotos.length));
     const remainingCount = sortedPhotos.length - maxVisible;
 
-    // Photos are now objects with .path
+    // Use thumbnails instead of full images
     previewGrid.innerHTML = photos.map(p => {
         const photoPath = typeof p === 'string' ? p : p.path;
-        return `<img src="photos/${photoPath}" alt="">`;
+        const thumbPath = getThumbUrl(photoPath);
+        return `<img src="${thumbPath}" alt="" onerror="this.src='photos/${photoPath}'">`;
     }).join('');
 
-    // Handle 9th slot based on remaining count
     if (remainingCount === 1) {
-        // Show 9th image as normal photo
         const ninthPhoto = sortedPhotos[maxVisible];
         const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
-        previewGrid.innerHTML += `<img src="photos/${photoPath}" alt="">`;
+        const thumbPath = getThumbUrl(photoPath);
+        previewGrid.innerHTML += `<img src="${thumbPath}" alt="" onerror="this.src='photos/${photoPath}'">`;
     } else if (remainingCount >= 2) {
-        // Show blurred 9th image with +N overlay
         const ninthPhoto = sortedPhotos[maxVisible];
         const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
+        const thumbPath = getThumbUrl(photoPath);
         previewGrid.innerHTML += `<div class="hover-preview-more-blur">
-            <img src="photos/${photoPath}" alt="">
+            <img src="${thumbPath}" alt="" onerror="this.src='photos/${photoPath}'">
             <span class="plus-n-overlay">+${remainingCount}</span>
         </div>`;
     }
 
-    // Position preview (offset by 50% for timeline width)
-    const point = map.latLngToContainerPoint(e.latlng);
+    // Position preview
     const mapOffset = window.innerWidth * 0.5;
-    hoverPreview.style.left = `${mapOffset + point.x + 20}px`;
-    hoverPreview.style.top = `${point.y + 60}px`;
+    hoverPreview.style.left = `${mapOffset + screenPosition.x + 20}px`;
+    hoverPreview.style.top = `${screenPosition.y + 60}px`;
     hoverPreview.classList.add('visible');
 }
 
@@ -187,7 +210,7 @@ function buildGlobalPhotoList() {
         if (!visit.photos) return;
         visit.photos.forEach((photo, photoIndex) => {
             const date = typeof photo === 'string' ? '' : (photo.date || '');
-            if (!date) return; // Skip photos without date
+            if (!date) return;
             allPhotosGlobal.push({
                 photo,
                 visit,
@@ -196,18 +219,16 @@ function buildGlobalPhotoList() {
             });
         });
     });
-    // Sort by date (newest first)
     allPhotosGlobal.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// Open gallery for a single city (from city marker click)
+// Open gallery for a single city
 function openCityGallery(visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
     isGlobalGallery = false;
     currentVisit = visit;
 
-    // Get all photos for this city, sorted by date
     let photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
     photosToShow.sort((a, b) => {
         const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
@@ -227,7 +248,7 @@ function openCityGallery(visit) {
     gallery.classList.remove('hidden');
 }
 
-// Open global gallery (from timeline click) - shows all photos from all cities
+// Open global gallery (from timeline click)
 function openGlobalGallery(startPhotoPath) {
     if (allPhotosGlobal.length === 0) return;
 
@@ -235,7 +256,6 @@ function openGlobalGallery(startPhotoPath) {
     currentVisit = null;
     filteredPhotos = allPhotosGlobal;
 
-    // Find starting position based on photo path
     currentPhotoIndex = 0;
     if (startPhotoPath) {
         const startIdx = allPhotosGlobal.findIndex(item => {
@@ -250,7 +270,7 @@ function openGlobalGallery(startPhotoPath) {
     gallery.classList.remove('hidden');
 }
 
-// Build thumbnails with sliding window (max 8 visible at a time for global gallery)
+// Build thumbnails with sliding window
 function updateGalleryThumbnails() {
     const maxThumbs = 8;
     let thumbsToShow;
@@ -259,7 +279,6 @@ function updateGalleryThumbnails() {
     let hasMoreAfter = false;
 
     if (isGlobalGallery && filteredPhotos.length > maxThumbs) {
-        // Sliding window centered on current photo
         startIdx = currentPhotoIndex - Math.floor(maxThumbs / 2);
         startIdx = Math.max(0, startIdx);
         startIdx = Math.min(startIdx, filteredPhotos.length - maxThumbs);
@@ -274,13 +293,10 @@ function updateGalleryThumbnails() {
         const actualIndex = startIdx + i;
         const photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
 
-        // Add gradient fade effect on edge thumbnails (2 levels each side)
         let edgeClass = '';
         if (isGlobalGallery && filteredPhotos.length > maxThumbs) {
-            // Left side fade
             if (i === 0 && hasMoreBefore) edgeClass = 'thumb-fade-2';
             else if (i === 1 && hasMoreBefore) edgeClass = 'thumb-fade-1';
-            // Right side fade
             if (i === thumbsToShow.length - 1 && hasMoreAfter) edgeClass = 'thumb-fade-2';
             else if (i === thumbsToShow.length - 2 && hasMoreAfter) edgeClass = 'thumb-fade-1';
         }
@@ -298,10 +314,16 @@ function closeGallery() {
     isGlobalGallery = false;
     clearTimelineHighlight();
 
-    // Restore previous map view
-    if (previousMapView) {
-        map.flyTo(previousMapView.center, previousMapView.zoom, { duration: 0.5 });
-        previousMapView = null;
+    if (previousCameraState) {
+        viewer.camera.flyTo({
+            destination: previousCameraState.position,
+            orientation: {
+                direction: previousCameraState.direction,
+                up: previousCameraState.up
+            },
+            duration: 0.5
+        });
+        previousCameraState = null;
     }
 }
 
@@ -314,14 +336,12 @@ function updateGalleryImage() {
     let photoPath, photoDate, city, country;
 
     if (isGlobalGallery) {
-        // Global mode - item has visit info
         photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
         photoDate = item.date;
         city = item.visit.city;
         country = item.visit.country;
         galleryTitle.textContent = `${city}, ${country}`;
     } else {
-        // City mode - item has photo and originalIndex
         const photo = item.photo;
         photoPath = typeof photo === 'string' ? photo : photo.path;
         photoDate = typeof photo === 'string' ? '' : (photo.date || '');
@@ -331,18 +351,15 @@ function updateGalleryImage() {
     galleryImage.src = `photos/${photoPath}`;
     galleryDate.textContent = photoDate;
 
-    // Rebuild thumbnails for sliding window in global mode
     if (isGlobalGallery) {
         updateGalleryThumbnails();
     } else {
-        // Update thumbnail active state
         galleryThumbnails.querySelectorAll('.gallery-thumb').forEach((thumb) => {
             const idx = parseInt(thumb.dataset.index);
             thumb.classList.toggle('active', idx === currentPhotoIndex);
         });
     }
 
-    // Scroll active thumbnail into view
     const activeThumb = galleryThumbnails.querySelector('.gallery-thumb.active');
     if (activeThumb) {
         activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center' });
@@ -360,23 +377,20 @@ function navigateGallery(direction) {
 
 // Timeline - vertical left sidebar with photo previews
 function buildTimeline() {
-    // Build entries for each unique date per city (skip empty dates)
     const entries = [];
     visits.forEach((visit) => {
         if (!visit.photos || visit.photos.length === 0) return;
 
-        // Group photos by date
         const dateMap = {};
         visit.photos.forEach((photo, photoIndex) => {
             const date = typeof photo === 'string' ? '' : (photo.date || '');
-            if (!date) return; // Skip photos without date
+            if (!date) return;
             if (!dateMap[date]) {
                 dateMap[date] = { photos: [], firstPhotoIndex: photoIndex };
             }
             dateMap[date].photos.push(photo);
         });
 
-        // Create entry for each date
         Object.keys(dateMap).forEach(date => {
             entries.push({
                 visit,
@@ -387,20 +401,15 @@ function buildTimeline() {
         });
     });
 
-    // Sort entries by date (newest first)
     entries.sort((a, b) => b.date.localeCompare(a.date));
-
-    // Store entries for click handler
     timeline.entries = entries;
 
-    // Group entries by month for headers
     let currentMonth = '';
     let html = '';
 
     entries.forEach((entry, i) => {
-        const entryMonth = entry.date.substring(0, 7); // YYYY-MM
+        const entryMonth = entry.date.substring(0, 7);
 
-        // Add month header if new month
         if (entryMonth !== currentMonth) {
             currentMonth = entryMonth;
             const d = new Date(entry.date + '-01');
@@ -408,24 +417,18 @@ function buildTimeline() {
             html += `<div class="timeline-month-header">${monthLabel}</div>`;
         }
 
-        // Show up to 4 photos normally, then handle +N logic for 5th slot
-        // If +1 remaining: show 5th image normally
-        // If +2 or more: show blurred 5th image with +N overlay
         const maxVisible = 4;
         const totalPhotos = entry.photos.length;
         const previewPhotos = entry.photos.slice(0, Math.min(maxVisible, totalPhotos));
         const remainingCount = totalPhotos - maxVisible;
 
-        // Build the +N slot if needed
         let plusNSlot = '';
         if (remainingCount === 1) {
-            // Show 9th image as normal photo
             const ninthPhoto = entry.photos[maxVisible];
             const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
             const thumbPath = getThumbUrl(photoPath);
             plusNSlot = `<div class="timeline-photo" data-path="${photoPath}"><img src="${thumbPath}" alt="" loading="lazy" decoding="async" onerror="this.src='photos/${photoPath}'"></div>`;
         } else if (remainingCount >= 2) {
-            // Show blurred 9th image with +N overlay
             const ninthPhoto = entry.photos[maxVisible];
             const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
             const thumbPath = getThumbUrl(photoPath);
@@ -480,20 +483,17 @@ function clearTimelineHighlight() {
     });
 }
 
-// Timeline click handler - opens global gallery with all photos
+// Timeline click handler
 timeline.addEventListener('click', (e) => {
-    // Check if a specific photo or +N was clicked
     const photoEl = e.target.closest('.timeline-photo, .timeline-photo-more, .timeline-photo-more-blur');
     const entryEl = e.target.closest('.timeline-entry');
 
     if (!entryEl) return;
 
-    // Get the photo path to start at
     let startPhotoPath = null;
     if (photoEl && photoEl.dataset.path) {
         startPhotoPath = photoEl.dataset.path;
     } else {
-        // Clicked on header - start at first photo of this entry
         const index = parseInt(entryEl.dataset.index);
         const entry = timeline.entries?.[index];
         if (entry && entry.photos.length > 0) {
@@ -502,13 +502,45 @@ timeline.addEventListener('click', (e) => {
         }
     }
 
-    // Save current map view before opening gallery
-    previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
+    previousCameraState = {
+        position: viewer.camera.position.clone(),
+        direction: viewer.camera.direction.clone(),
+        up: viewer.camera.up.clone()
+    };
 
-    // Open global gallery with all photos, starting at clicked photo
     openGlobalGallery(startPhotoPath);
 });
 
+// Cesium event handlers for hover and click
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+// Hover handler - also stops rotation when hovering on marker
+handler.setInputAction((movement) => {
+    const picked = viewer.scene.pick(movement.endPosition);
+    if (Cesium.defined(picked) && picked.id?.properties?.visit) {
+        const visit = picked.id.properties.visit.getValue();
+        isHoveringMarker = true;
+        showHoverPreview(movement.endPosition, visit);
+    } else {
+        isHoveringMarker = false;
+        hideHoverPreview();
+    }
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+// Click handler
+handler.setInputAction((click) => {
+    const picked = viewer.scene.pick(click.position);
+    if (Cesium.defined(picked) && picked.id?.properties?.visit) {
+        const visit = picked.id.properties.visit.getValue();
+        previousCameraState = {
+            position: viewer.camera.position.clone(),
+            direction: viewer.camera.direction.clone(),
+            up: viewer.camera.up.clone()
+        };
+        hideHoverPreview();
+        openCityGallery(visit);
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 // Load travel data
 async function loadData() {
@@ -517,26 +549,20 @@ async function loadData() {
         const data = await response.json();
         visits = data.visits || [];
 
-        // Collect country codes
         visits.forEach(visit => {
             if (visit.countryCode) {
                 visitedCountryCodes.add(visit.countryCode);
             }
         });
 
-        // Highlight countries
         highlightCountries();
 
-        // Add markers (cities with more photos get higher z-index)
         visits.forEach(visit => {
             const photoCount = visit.photos ? visit.photos.length : 0;
             createMarker(visit, photoCount * 10);
         });
 
-        // Build timeline
         buildTimeline();
-
-        // Build global photo list for timeline gallery
         buildGlobalPhotoList();
 
     } catch (error) {

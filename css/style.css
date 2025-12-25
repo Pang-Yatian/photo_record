@@ -378,34 +378,23 @@ body {
     bottom: 0;
 }
 
-/* Custom marker */
-.city-marker {
-    background: #00d4aa;
-    border: 3px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+/* Hide Cesium default UI elements */
+.cesium-viewer-bottom,
+.cesium-viewer-toolbar,
+.cesium-credit-logoContainer,
+.cesium-credit-textContainer,
+.cesium-viewer-cesiumWidgetContainer credit,
+.cesium-widget-credits {
+    display: none !important;
 }
 
-.city-marker:hover {
-    transform: scale(1.2);
-    box-shadow: 0 4px 16px rgba(0, 212, 170, 0.4);
+.cesium-viewer .cesium-widget-credits {
+    display: none !important;
 }
 
-/* Tooltip */
-.leaflet-tooltip {
-    background: rgba(26, 26, 46, 0.95);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 13px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.leaflet-tooltip::before {
-    border-top-color: rgba(26, 26, 46, 0.95);
+/* Cesium canvas styling */
+.cesium-widget canvas {
+    border-radius: 0;
 }
 
 /* Lightbox */
