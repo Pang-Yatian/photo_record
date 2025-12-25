@@ -113,8 +113,6 @@ function getThumbUrl(photoPath) {
 }
 
 // Country highlighting with GeoJSON
-let countriesDataSource = null;
-
 async function loadCountries() {
     try {
         countriesDataSource = await Cesium.GeoJsonDataSource.load(
