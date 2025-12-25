@@ -1,4 +1,4 @@
-// Public visualization page - read only
+// Public visualization page
 
 // Initialize map
 const map = L.map('map', {
@@ -20,20 +20,27 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 let countriesLayer = null;
 let visitedCountryCodes = new Set();
 let visits = [];
+let markers = [];
 
-// Lightbox state
-let currentPhotos = [];
+// Gallery state
+let currentVisit = null;
 let currentPhotoIndex = 0;
 
 // DOM elements
-const lightbox = document.getElementById('lightbox');
-const lightboxImage = document.getElementById('lightbox-image');
-const lightboxCity = document.getElementById('lightbox-city');
-const lightboxDate = document.getElementById('lightbox-date');
-const lightboxCurrent = document.getElementById('lightbox-current');
-const lightboxTotal = document.getElementById('lightbox-total');
+const hoverPreview = document.getElementById('hover-preview');
+const gallery = document.getElementById('gallery');
+const galleryImage = document.getElementById('gallery-image');
+const galleryTitle = document.getElementById('gallery-title');
+const galleryDate = document.getElementById('gallery-date');
+const galleryThumbnails = document.getElementById('gallery-thumbnails');
+const timeline = document.getElementById('timeline');
 const countryCount = document.getElementById('country-count');
 const cityCount = document.getElementById('city-count');
+
+// Get country flag URL
+function getFlagUrl(countryCode) {
+    return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+}
 
 // Load countries GeoJSON
 async function loadCountries() {
@@ -63,7 +70,8 @@ function highlightCountries() {
     if (!countriesLayer) return;
 
     countriesLayer.eachLayer(layer => {
-        const code = layer.feature.properties.ISO_A2;
+        const props = layer.feature.properties;
+        const code = props['ISO3166-1-Alpha-2'] || props.ISO_A2 || props.iso_a2;
         if (visitedCountryCodes.has(code)) {
             layer.setStyle({
                 fillColor: '#00d4aa',
@@ -75,7 +83,7 @@ function highlightCountries() {
     });
 }
 
-// Create marker
+// Create marker with hover preview
 function createMarker(visit) {
     const icon = L.divIcon({
         className: 'city-marker',
@@ -84,51 +92,156 @@ function createMarker(visit) {
     });
 
     const marker = L.marker([visit.lat, visit.lng], { icon })
-        .addTo(map)
-        .bindTooltip(visit.city, {
-            direction: 'top',
-            offset: [0, -10]
-        });
+        .addTo(map);
 
-    marker.on('click', () => openLightbox(visit));
+    // Hover preview
+    marker.on('mouseover', (e) => showHoverPreview(e, visit));
+    marker.on('mouseout', hideHoverPreview);
+    marker.on('click', () => openGallery(visit));
+
+    markers.push({ marker, visit });
     return marker;
 }
 
-// Lightbox
-function openLightbox(visit) {
+// Show hover preview with max 5 images
+function showHoverPreview(e, visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
-    currentPhotos = visit.photos;
+    const previewTitle = hoverPreview.querySelector('.hover-preview-title');
+    const previewGrid = hoverPreview.querySelector('.hover-preview-grid');
+
+    previewTitle.textContent = `${visit.city}, ${visit.country}`;
+
+    const photos = visit.photos.slice(0, 5);
+    const remaining = visit.photos.length - 5;
+
+    previewGrid.innerHTML = photos.map(p =>
+        `<img src="photos/${p}" alt="">`
+    ).join('');
+
+    if (remaining > 0) {
+        previewGrid.innerHTML += `<div class="hover-preview-more">+${remaining}</div>`;
+    }
+
+    // Position preview
+    const point = map.latLngToContainerPoint(e.latlng);
+    hoverPreview.style.left = `${point.x + 20}px`;
+    hoverPreview.style.top = `${point.y - 20}px`;
+    hoverPreview.classList.add('visible');
+}
+
+function hideHoverPreview() {
+    hoverPreview.classList.remove('visible');
+}
+
+// iPhone-style Gallery
+function openGallery(visit) {
+    if (!visit.photos || visit.photos.length === 0) return;
+
+    currentVisit = visit;
     currentPhotoIndex = 0;
 
-    lightboxCity.textContent = `${visit.city}, ${visit.country}`;
-    lightboxDate.textContent = visit.date || '';
-    lightboxTotal.textContent = currentPhotos.length;
+    galleryTitle.textContent = `${visit.city}, ${visit.country}`;
+    galleryDate.textContent = visit.date || '';
 
-    updateLightboxImage();
-    lightbox.classList.remove('hidden');
+    // Build thumbnails
+    galleryThumbnails.innerHTML = visit.photos.map((p, i) =>
+        `<div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}">
+            <img src="photos/${p}" alt="">
+        </div>`
+    ).join('');
+
+    updateGalleryImage();
+    gallery.classList.remove('hidden');
+
+    // Highlight corresponding timeline item
+    highlightTimelineItem(visit);
 }
 
-function closeLightbox() {
-    lightbox.classList.add('hidden');
-    currentPhotos = [];
-    currentPhotoIndex = 0;
+function closeGallery() {
+    gallery.classList.add('hidden');
+    currentVisit = null;
+    clearTimelineHighlight();
 }
 
-function updateLightboxImage() {
-    lightboxImage.src = `photos/${currentPhotos[currentPhotoIndex]}`;
-    lightboxCurrent.textContent = currentPhotoIndex + 1;
-    document.querySelector('.lightbox-prev').disabled = currentPhotoIndex === 0;
-    document.querySelector('.lightbox-next').disabled = currentPhotoIndex === currentPhotos.length - 1;
-}
+function updateGalleryImage() {
+    if (!currentVisit) return;
+    galleryImage.src = `photos/${currentVisit.photos[currentPhotoIndex]}`;
 
-function navigateLightbox(direction) {
-    const newIndex = currentPhotoIndex + direction;
-    if (newIndex >= 0 && newIndex < currentPhotos.length) {
-        currentPhotoIndex = newIndex;
-        updateLightboxImage();
+    // Update thumbnail active state
+    galleryThumbnails.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
+        thumb.classList.toggle('active', i === currentPhotoIndex);
+    });
+
+    // Scroll active thumbnail into view
+    const activeThumb = galleryThumbnails.querySelector('.gallery-thumb.active');
+    if (activeThumb) {
+        activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center' });
     }
 }
+
+function navigateGallery(direction) {
+    if (!currentVisit) return;
+    const newIndex = currentPhotoIndex + direction;
+    if (newIndex >= 0 && newIndex < currentVisit.photos.length) {
+        currentPhotoIndex = newIndex;
+        updateGalleryImage();
+    }
+}
+
+// Timeline
+function buildTimeline() {
+    // Sort visits by date (newest first)
+    const sortedVisits = [...visits].sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date.localeCompare(a.date);
+    });
+
+    timeline.innerHTML = sortedVisits.map((visit, i) => `
+        <div class="timeline-item" data-index="${i}">
+            <img class="timeline-flag" src="${getFlagUrl(visit.countryCode)}" alt="${visit.country}"
+                 onerror="this.style.display='none'">
+            <span class="timeline-city">${visit.city}</span>
+            <span class="timeline-date">${visit.date || ''}</span>
+        </div>
+    `).join('');
+
+    // Store sorted visits for reference
+    timeline.sortedVisits = sortedVisits;
+}
+
+function highlightTimelineItem(visit) {
+    clearTimelineHighlight();
+    const items = timeline.querySelectorAll('.timeline-item');
+    items.forEach((item, i) => {
+        if (timeline.sortedVisits[i] === visit) {
+            item.classList.add('active');
+            item.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        }
+    });
+}
+
+function clearTimelineHighlight() {
+    timeline.querySelectorAll('.timeline-item').forEach(item => {
+        item.classList.remove('active');
+    });
+}
+
+// Timeline click handler
+timeline.addEventListener('click', (e) => {
+    const item = e.target.closest('.timeline-item');
+    if (!item) return;
+
+    const index = parseInt(item.dataset.index);
+    const visit = timeline.sortedVisits[index];
+
+    // Fly to city on map
+    map.flyTo([visit.lat, visit.lng], 10, { duration: 1 });
+
+    // Open gallery
+    openGallery(visit);
+});
 
 // Update stats
 function updateStats() {
@@ -156,6 +269,9 @@ async function loadData() {
         // Add markers
         visits.forEach(visit => createMarker(visit));
 
+        // Build timeline
+        buildTimeline();
+
         // Update stats
         updateStats();
 
@@ -164,19 +280,40 @@ async function loadData() {
     }
 }
 
-// Event listeners
-document.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-document.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
-document.querySelector('.lightbox-prev').addEventListener('click', () => navigateLightbox(-1));
-document.querySelector('.lightbox-next').addEventListener('click', () => navigateLightbox(1));
+// Gallery event listeners
+document.querySelector('.gallery-close').addEventListener('click', closeGallery);
+document.querySelector('.gallery-nav.prev').addEventListener('click', () => navigateGallery(-1));
+document.querySelector('.gallery-nav.next').addEventListener('click', () => navigateGallery(1));
+
+galleryThumbnails.addEventListener('click', (e) => {
+    const thumb = e.target.closest('.gallery-thumb');
+    if (thumb) {
+        currentPhotoIndex = parseInt(thumb.dataset.index);
+        updateGalleryImage();
+    }
+});
 
 // Keyboard navigation
 document.addEventListener('keydown', e => {
-    if (lightbox.classList.contains('hidden')) return;
+    if (gallery.classList.contains('hidden')) return;
     switch (e.key) {
-        case 'Escape': closeLightbox(); break;
-        case 'ArrowLeft': navigateLightbox(-1); break;
-        case 'ArrowRight': navigateLightbox(1); break;
+        case 'Escape': closeGallery(); break;
+        case 'ArrowLeft': navigateGallery(-1); break;
+        case 'ArrowRight': navigateGallery(1); break;
+    }
+});
+
+// Swipe support for gallery
+let touchStartX = 0;
+gallery.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+});
+
+gallery.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) > 50) {
+        navigateGallery(diff > 0 ? 1 : -1);
     }
 });
 

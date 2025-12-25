@@ -20,27 +20,31 @@
     <!-- Map -->
     <div id="map"></div>
 
-    <!-- Photo Lightbox -->
-    <div id="lightbox" class="lightbox hidden">
-        <div class="lightbox-overlay"></div>
-        <div class="lightbox-content">
-            <button class="lightbox-close">×</button>
-            <div class="lightbox-header">
-                <h2 id="lightbox-city"></h2>
-                <span id="lightbox-date"></span>
-            </div>
-            <div class="lightbox-gallery">
-                <button class="lightbox-nav lightbox-prev">‹</button>
-                <div class="lightbox-image-container">
-                    <img id="lightbox-image" src="" alt="">
-                </div>
-                <button class="lightbox-nav lightbox-next">›</button>
-            </div>
-            <div class="lightbox-counter">
-                <span id="lightbox-current">1</span> / <span id="lightbox-total">1</span>
-            </div>
-        </div>
+    <!-- Hover Preview -->
+    <div id="hover-preview" class="hover-preview">
+        <div class="hover-preview-title"></div>
+        <div class="hover-preview-grid"></div>
     </div>
+
+    <!-- iPhone-style Gallery -->
+    <div id="gallery" class="gallery hidden">
+        <div class="gallery-header">
+            <div>
+                <h2 id="gallery-title"></h2>
+                <span id="gallery-date"></span>
+            </div>
+            <button class="gallery-close">Done</button>
+        </div>
+        <div class="gallery-main">
+            <button class="gallery-nav prev">‹</button>
+            <img id="gallery-image" src="" alt="">
+            <button class="gallery-nav next">›</button>
+        </div>
+        <div id="gallery-thumbnails" class="gallery-thumbnails"></div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline" class="timeline"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/app.js"></script>
