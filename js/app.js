@@ -1,10 +1,10 @@
 // Public visualization page
 
-// Initialize map
+// Initialize map - global view
 const map = L.map('map', {
     center: [20, 0],
-    zoom: 2,
-    minZoom: 2,
+    zoom: 1.5,
+    minZoom: 1,
     maxZoom: 18,
     worldCopyJump: true
 });
@@ -84,14 +84,14 @@ function highlightCountries() {
 }
 
 // Create marker with hover preview
-function createMarker(visit) {
+function createMarker(visit, zIndex = 100) {
     const icon = L.divIcon({
         className: 'city-marker',
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     });
 
-    const marker = L.marker([visit.lat, visit.lng], { icon })
+    const marker = L.marker([visit.lat, visit.lng], { icon, zIndexOffset: zIndex })
         .addTo(map);
 
     // Hover preview
@@ -239,9 +239,9 @@ function navigateGallery(direction) {
     }
 }
 
-// Timeline - fixed 12 month display with scroll back
+// Timeline - vertical left sidebar with photo previews
 function buildTimeline() {
-    // Build entries for each unique date per city
+    // Build entries for each unique date per city (skip empty dates)
     const entries = [];
     visits.forEach((visit) => {
         if (!visit.photos || visit.photos.length === 0) return;
@@ -250,10 +250,11 @@ function buildTimeline() {
         const dateMap = {};
         visit.photos.forEach((photo, photoIndex) => {
             const date = typeof photo === 'string' ? '' : (photo.date || '');
+            if (!date) return; // Skip photos without date
             if (!dateMap[date]) {
-                dateMap[date] = { firstPhotoIndex: photoIndex, count: 0 };
+                dateMap[date] = { photos: [], firstPhotoIndex: photoIndex };
             }
-            dateMap[date].count++;
+            dateMap[date].photos.push(photo);
         });
 
         // Create entry for each date
@@ -261,183 +262,85 @@ function buildTimeline() {
             entries.push({
                 visit,
                 date,
-                firstPhotoIndex: dateMap[date].firstPhotoIndex,
-                photoCount: dateMap[date].count
+                photos: dateMap[date].photos,
+                firstPhotoIndex: dateMap[date].firstPhotoIndex
             });
         });
     });
 
+    // Sort entries by date (newest first)
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+
     // Store entries for click handler
     timeline.entries = entries;
 
-    // Find oldest entry date to determine scroll range
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-11
+    // Group entries by month for headers
+    let currentMonth = '';
+    let html = '';
 
-    let oldestDate = null;
-    entries.forEach(entry => {
-        if (entry.date && (!oldestDate || entry.date < oldestDate)) {
-            oldestDate = entry.date;
-        }
-    });
-
-    // Calculate total months needed for scrolling (extends to oldest entry)
-    let numMonths = 12;
-    if (oldestDate) {
-        const [oldYear, oldMonth] = oldestDate.split('-').map(Number);
-        const monthsBack = (currentYear - oldYear) * 12 + (currentMonth + 1 - oldMonth);
-        numMonths = Math.max(12, monthsBack + 1);
-    }
-
-    const months = [];
-    for (let i = 0; i < numMonths; i++) {
-        const d = new Date(currentYear, currentMonth - i, 1);
-        const year = d.getFullYear();
-        const month = d.getMonth() + 1; // 1-12
-        const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-        const label = d.toLocaleString('en', { month: 'short' }) + (month === 1 || i === numMonths - 1 ? ` '${String(year).slice(-2)}` : '');
-        months.push({ monthStr, label, index: i });
-    }
-
-    // Group entries by month AND deduplicate by country
-    const entriesByMonth = {};
     entries.forEach((entry, i) => {
-        if (!entry.date) return;
-        const monthIndex = months.findIndex(m => m.monthStr === entry.date);
-        if (monthIndex < 0) return;
-        if (!entriesByMonth[monthIndex]) entriesByMonth[monthIndex] = {};
+        const entryMonth = entry.date.substring(0, 7); // YYYY-MM
 
-        // Only keep first entry per country (latest uploaded)
-        const countryCode = entry.visit.countryCode;
-        if (!entriesByMonth[monthIndex][countryCode]) {
-            entriesByMonth[monthIndex][countryCode] = { entry, originalIndex: i };
+        // Add month header if new month
+        if (entryMonth !== currentMonth) {
+            currentMonth = entryMonth;
+            const d = new Date(entry.date + '-01');
+            const monthLabel = d.toLocaleString('en', { month: 'long', year: 'numeric' });
+            html += `<div class="timeline-month-header">${monthLabel}</div>`;
         }
-    });
 
-    // Calculate timeline width (80px per month)
-    const monthWidth = 80;
-    const timelineWidth = numMonths * monthWidth + 80;
+        // Get up to 5 photos for preview
+        const previewPhotos = entry.photos.slice(0, 5);
 
-    // Build month labels
-    const monthLabels = months.map((m, i) => {
-        const position = 40 + (numMonths - 1 - i) * monthWidth;
-        return `<div class="timeline-month${i === 0 ? ' current' : ''}" style="left: ${position}px">${m.label}</div>`;
-    }).join('');
-
-    // Build month ticks
-    const monthTicks = months.map((m, i) => {
-        const position = 40 + (numMonths - 1 - i) * monthWidth;
-        return `<div class="timeline-month-tick" style="left: ${position}px"></div>`;
-    }).join('');
-
-    // Build flag markers with fan layout for multiple countries
-    let flagMarkers = '';
-    Object.keys(entriesByMonth).forEach(monthIndex => {
-        const countryEntries = Object.values(entriesByMonth[monthIndex]);
-        const baseX = 40 + (numMonths - 1 - monthIndex) * monthWidth;
-        const count = Math.min(countryEntries.length, 5); // Max 5 flags
-
-        // Fan layout: spread flags in an arc above the axis point
-        countryEntries.slice(0, 5).forEach((item, i) => {
-            const entry = item.entry;
-
-            // Calculate position in fan layout
-            let offsetX = 0;
-            let offsetY = 0;
-
-            if (count === 1) {
-                offsetX = 0;
-                offsetY = 0;
-            } else if (count === 2) {
-                offsetX = (i === 0 ? -18 : 18);
-                offsetY = 0;
-            } else if (count === 3) {
-                const positions = [
-                    { x: 0, y: -20 },
-                    { x: -20, y: 5 },
-                    { x: 20, y: 5 }
-                ];
-                offsetX = positions[i].x;
-                offsetY = positions[i].y;
-            } else if (count === 4) {
-                const positions = [
-                    { x: 0, y: -22 },
-                    { x: -22, y: 0 },
-                    { x: 22, y: 0 },
-                    { x: 0, y: 22 }
-                ];
-                offsetX = positions[i].x;
-                offsetY = positions[i].y;
-            } else {
-                const positions = [
-                    { x: 0, y: -25 },
-                    { x: -22, y: -8 },
-                    { x: 22, y: -8 },
-                    { x: -14, y: 15 },
-                    { x: 14, y: 15 }
-                ];
-                offsetX = positions[i].x;
-                offsetY = positions[i].y;
-            }
-
-            flagMarkers += `
-                <div class="timeline-flag-marker" data-index="${item.originalIndex}" style="left: ${baseX + offsetX}px; transform: translate(-50%, calc(-100% - 5px - ${-offsetY}px))">
-                    <div class="timeline-tooltip">
-                        <div class="timeline-tooltip-city">${entry.visit.city}</div>
-                        <div class="timeline-tooltip-date">${entry.date}</div>
-                    </div>
+        html += `
+            <div class="timeline-entry" data-index="${i}">
+                <div class="timeline-entry-header">
                     <img class="timeline-flag" src="${getFlagUrl(entry.visit.countryCode)}" alt="${entry.visit.country}"
                          onerror="this.style.display='none'">
-                </div>`;
-        });
-
-        // Show "+N" indicator if more than 5 countries
-        if (countryEntries.length > 5) {
-            flagMarkers += `
-                <div class="timeline-more-indicator" style="left: ${baseX}px">+${countryEntries.length - 5}</div>`;
-        }
+                    <div class="timeline-entry-info">
+                        <div class="timeline-entry-city">${entry.visit.city}</div>
+                        <div class="timeline-entry-date">${entry.date} · ${entry.photos.length} photos</div>
+                    </div>
+                </div>
+                <div class="timeline-photos">
+                    ${previewPhotos.map(p => {
+                        const photoPath = typeof p === 'string' ? p : p.path;
+                        return `<div class="timeline-photo"><img src="photos/${photoPath}" alt=""></div>`;
+                    }).join('')}
+                </div>
+            </div>`;
     });
 
-    timeline.innerHTML = `
-        <div class="timeline-container" style="width: ${timelineWidth}px">
-            <div class="timeline-axis"></div>
-            ${monthTicks}
-            <div class="timeline-months">${monthLabels}</div>
-            ${flagMarkers}
-        </div>`;
-
-    // Scroll to right (current month)
-    timeline.scrollLeft = timeline.scrollWidth;
+    timeline.innerHTML = html || '<div style="padding: 20px; color: #888; text-align: center;">No photos yet</div>';
 }
 
 function highlightTimelineItem(visit, date) {
     clearTimelineHighlight();
     if (!timeline.entries) return;
 
-    const markers = timeline.querySelectorAll('.timeline-flag-marker');
-    markers.forEach((marker) => {
-        const index = parseInt(marker.dataset.index);
+    const entries = timeline.querySelectorAll('.timeline-entry');
+    entries.forEach((el) => {
+        const index = parseInt(el.dataset.index);
         const entry = timeline.entries[index];
         if (entry && entry.visit === visit && (!date || entry.date === date)) {
-            marker.classList.add('active');
-            marker.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            el.classList.add('active');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
 }
 
 function clearTimelineHighlight() {
-    timeline.querySelectorAll('.timeline-flag-marker').forEach(marker => {
-        marker.classList.remove('active');
+    timeline.querySelectorAll('.timeline-entry').forEach(el => {
+        el.classList.remove('active');
     });
 }
 
 // Timeline click handler
 timeline.addEventListener('click', (e) => {
-    const marker = e.target.closest('.timeline-flag-marker');
-    if (!marker || !timeline.entries) return;
+    const entryEl = e.target.closest('.timeline-entry');
+    if (!entryEl || !timeline.entries) return;
 
-    const index = parseInt(marker.dataset.index);
+    const index = parseInt(entryEl.dataset.index);
     const entry = timeline.entries[index];
     if (!entry) return;
 
@@ -469,8 +372,11 @@ async function loadData() {
         // Highlight countries
         highlightCountries();
 
-        // Add markers
-        visits.forEach(visit => createMarker(visit));
+        // Add markers (cities with more photos get higher z-index)
+        visits.forEach(visit => {
+            const photoCount = visit.photos ? visit.photos.length : 0;
+            createMarker(visit, photoCount * 10);
+        });
 
         // Build timeline
         buildTimeline();

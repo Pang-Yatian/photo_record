@@ -126,7 +126,7 @@ body {
 /* FAB */
 .fab {
     position: fixed;
-    bottom: 120px;
+    bottom: 30px;
     right: 30px;
     width: 56px;
     height: 56px;
@@ -530,8 +530,8 @@ body {
 /* Toast */
 .toast {
     position: fixed;
-    bottom: 120px;
-    left: 50%;
+    bottom: 30px;
+    left: calc(280px + 50%);
     transform: translateX(-50%);
     background: #2a2a4e;
     color: #fff;
@@ -765,23 +765,24 @@ body {
     background: rgba(220, 53, 69, 0.5);
 }
 
-/* Timeline - 24 month horizontal axis */
+/* Timeline - vertical left sidebar */
 .timeline {
     position: fixed;
-    bottom: 0;
+    top: 60px;
     left: 0;
-    right: 0;
-    height: 100px;
-    background: rgba(26, 26, 46, 0.95);
+    width: 280px;
+    bottom: 0;
+    background: rgba(26, 26, 46, 0.98);
     backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 900;
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 0;
 }
 
 .timeline::-webkit-scrollbar {
-    height: 6px;
+    width: 6px;
 }
 
 .timeline::-webkit-scrollbar-track {
@@ -793,143 +794,92 @@ body {
     border-radius: 3px;
 }
 
-.timeline-container {
-    position: relative;
-    height: 100%;
-    min-width: 100%;
-}
-
-.timeline-axis {
-    position: absolute;
-    top: 50%;
-    left: 40px;
-    right: 40px;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.timeline-months {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 0;
-}
-
-.timeline-month {
-    position: absolute;
-    color: #666;
-    font-size: 10px;
-    text-align: center;
-    transform: translate(-50%, 15px);
-    white-space: nowrap;
-}
-
-.timeline-month.current {
-    color: #00d4aa;
-    font-weight: 600;
-}
-
-.timeline-month-tick {
-    position: absolute;
-    width: 1px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.2);
-    top: 50%;
-    transform: translateY(-4px);
-}
-
-.timeline-flag-marker {
-    position: absolute;
-    top: 50%;
+.timeline-entry {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     cursor: pointer;
-    transition: all 0.2s;
-    z-index: 10;
+    transition: background 0.2s;
 }
 
-.timeline-flag-marker:hover {
-    z-index: 20;
+.timeline-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.timeline-flag-marker:hover .timeline-flag {
-    transform: scale(1.15);
+.timeline-entry.active {
+    background: rgba(0, 212, 170, 0.1);
+    border-left: 3px solid #00d4aa;
 }
 
-.timeline-flag-marker.active {
-    z-index: 30;
-}
-
-.timeline-flag-marker.active::after {
-    content: '';
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 6px;
-    background: #00d4aa;
-    border-radius: 50%;
-}
-
-.timeline-flag {
-    width: 36px;
-    height: 27px;
-    border-radius: 4px;
-    object-fit: cover;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    transition: transform 0.2s, border-color 0.2s;
-}
-
-.timeline-flag-marker:hover .timeline-flag {
-    border-color: rgba(255, 255, 255, 0.5);
-}
-
-.timeline-flag-marker.active .timeline-flag {
-    border-color: #00d4aa;
-}
-
-.timeline-tooltip {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
-    padding: 6px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
+.timeline-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 8px;
 }
 
-.timeline-flag-marker:hover .timeline-tooltip {
-    opacity: 1;
+.timeline-flag {
+    width: 28px;
+    height: 21px;
+    border-radius: 3px;
+    object-fit: cover;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
 }
 
-.timeline-tooltip-city {
+.timeline-entry-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.timeline-entry-city {
     color: #fff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-}
-
-.timeline-tooltip-date {
-    color: #888;
-    font-size: 10px;
-}
-
-.timeline-more-indicator {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, 8px);
-    background: rgba(0, 212, 170, 0.3);
-    color: #00d4aa;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 10px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.timeline-entry-date {
+    color: #888;
+    font-size: 11px;
+}
+
+.timeline-photos {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+}
+
+.timeline-photo {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.timeline-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+}
+
+.timeline-photo:hover img {
+    transform: scale(1.1);
+}
+
+.timeline-month-header {
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #00d4aa;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 /* Admin city list */
@@ -1079,12 +1029,14 @@ body {
     color: #1a1a2e;
 }
 
-/* Adjust map for timeline */
+/* Adjust map for timeline on left */
 #map {
-    bottom: 100px;
+    left: 280px;
+    bottom: 0;
 }
 
 /* Admin page */
 .admin-page #map {
-    bottom: 100px;
+    left: 280px;
+    bottom: 0;
 }
