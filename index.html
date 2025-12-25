@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Travel Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <h1>My Travel Map</h1>
+        <div id="stats">
+            <span id="country-count">0</span> countries
+            <span id="city-count">0</span> cities
+        </div>
+    </header>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Photo Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-overlay"></div>
+        <div class="lightbox-content">
+            <button class="lightbox-close">×</button>
+            <div class="lightbox-header">
+                <h2 id="lightbox-city"></h2>
+                <span id="lightbox-date"></span>
+            </div>
+            <div class="lightbox-gallery">
+                <button class="lightbox-nav lightbox-prev">‹</button>
+                <div class="lightbox-image-container">
+                    <img id="lightbox-image" src="" alt="">
+                </div>
+                <button class="lightbox-nav lightbox-next">›</button>
+            </div>
+            <div class="lightbox-counter">
+                <span id="lightbox-current">1</span> / <span id="lightbox-total">1</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
