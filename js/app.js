@@ -25,6 +25,8 @@ let markers = [];
 // Gallery state
 let currentVisit = null;
 let currentPhotoIndex = 0;
+let sortedPhotoIndices = [];
+let previousMapView = null; // Store map view before gallery opens
 
 // DOM elements
 const hoverPreview = document.getElementById('hover-preview');
@@ -34,8 +36,6 @@ const galleryTitle = document.getElementById('gallery-title');
 const galleryDate = document.getElementById('gallery-date');
 const galleryThumbnails = document.getElementById('gallery-thumbnails');
 const timeline = document.getElementById('timeline');
-const countryCount = document.getElementById('country-count');
-const cityCount = document.getElementById('city-count');
 
 // Get country flag URL
 function getFlagUrl(countryCode) {
@@ -97,13 +97,28 @@ function createMarker(visit) {
     // Hover preview
     marker.on('mouseover', (e) => showHoverPreview(e, visit));
     marker.on('mouseout', hideHoverPreview);
-    marker.on('click', () => openGallery(visit));
+    marker.on('click', () => {
+        previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
+        openGallery(visit);
+    });
 
     markers.push({ marker, visit });
     return marker;
 }
 
-// Show hover preview with max 5 images
+// Sort photos by date (newest first)
+function getSortedPhotos(photos) {
+    if (!photos || photos.length === 0) return [];
+    return [...photos].sort((a, b) => {
+        const dateA = typeof a === 'string' ? '' : (a.date || '');
+        const dateB = typeof b === 'string' ? '' : (b.date || '');
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateB.localeCompare(dateA);
+    });
+}
+
+// Show hover preview with max 9 images (sorted by date)
 function showHoverPreview(e, visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
@@ -112,12 +127,15 @@ function showHoverPreview(e, visit) {
 
     previewTitle.textContent = `${visit.city}, ${visit.country}`;
 
-    const photos = visit.photos.slice(0, 5);
-    const remaining = visit.photos.length - 5;
+    const sortedPhotos = getSortedPhotos(visit.photos);
+    const photos = sortedPhotos.slice(0, 9);
+    const remaining = sortedPhotos.length - 9;
 
-    previewGrid.innerHTML = photos.map(p =>
-        `<img src="photos/${p}" alt="">`
-    ).join('');
+    // Photos are now objects with .path
+    previewGrid.innerHTML = photos.map(p => {
+        const photoPath = typeof p === 'string' ? p : p.path;
+        return `<img src="photos/${photoPath}" alt="">`;
+    }).join('');
 
     if (remaining > 0) {
         previewGrid.innerHTML += `<div class="hover-preview-more">+${remaining}</div>`;
@@ -135,21 +153,39 @@ function hideHoverPreview() {
 }
 
 // iPhone-style Gallery
-function openGallery(visit) {
+function openGallery(visit, startPhotoIndex = null) {
     if (!visit.photos || visit.photos.length === 0) return;
 
     currentVisit = visit;
-    currentPhotoIndex = 0;
+
+    // Sort photos by date and track original indices
+    const photosWithIndex = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
+    photosWithIndex.sort((a, b) => {
+        const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
+        const dateB = typeof b.photo === 'string' ? '' : (b.photo.date || '');
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateB.localeCompare(dateA);
+    });
+    sortedPhotoIndices = photosWithIndex.map(p => p.originalIndex);
+
+    // Find starting position
+    if (startPhotoIndex !== null) {
+        currentPhotoIndex = sortedPhotoIndices.indexOf(startPhotoIndex);
+        if (currentPhotoIndex < 0) currentPhotoIndex = 0;
+    } else {
+        currentPhotoIndex = 0;
+    }
 
     galleryTitle.textContent = `${visit.city}, ${visit.country}`;
-    galleryDate.textContent = visit.date || '';
 
-    // Build thumbnails
-    galleryThumbnails.innerHTML = visit.photos.map((p, i) =>
-        `<div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}">
-            <img src="photos/${p}" alt="">
-        </div>`
-    ).join('');
+    // Build thumbnails in sorted order
+    galleryThumbnails.innerHTML = photosWithIndex.map((item, i) => {
+        const photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
+        return `<div class="gallery-thumb ${i === currentPhotoIndex ? 'active' : ''}" data-index="${i}">
+            <img src="photos/${photoPath}" alt="">
+        </div>`;
+    }).join('');
 
     updateGalleryImage();
     gallery.classList.remove('hidden');
@@ -161,12 +197,26 @@ function openGallery(visit) {
 function closeGallery() {
     gallery.classList.add('hidden');
     currentVisit = null;
+    sortedPhotoIndices = [];
     clearTimelineHighlight();
+
+    // Restore previous map view
+    if (previousMapView) {
+        map.flyTo(previousMapView.center, previousMapView.zoom, { duration: 0.5 });
+        previousMapView = null;
+    }
 }
 
 function updateGalleryImage() {
-    if (!currentVisit) return;
-    galleryImage.src = `photos/${currentVisit.photos[currentPhotoIndex]}`;
+    if (!currentVisit || sortedPhotoIndices.length === 0) return;
+
+    const originalIndex = sortedPhotoIndices[currentPhotoIndex];
+    const photo = currentVisit.photos[originalIndex];
+    const photoPath = typeof photo === 'string' ? photo : photo.path;
+    const photoDate = typeof photo === 'string' ? '' : (photo.date || '');
+
+    galleryImage.src = `photos/${photoPath}`;
+    galleryDate.textContent = photoDate;
 
     // Update thumbnail active state
     galleryThumbnails.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
@@ -189,65 +239,218 @@ function navigateGallery(direction) {
     }
 }
 
-// Timeline
+// Timeline - fixed 12 month display with scroll back
 function buildTimeline() {
-    // Sort visits by date (newest first)
-    const sortedVisits = [...visits].sort((a, b) => {
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return b.date.localeCompare(a.date);
+    // Build entries for each unique date per city
+    const entries = [];
+    visits.forEach((visit) => {
+        if (!visit.photos || visit.photos.length === 0) return;
+
+        // Group photos by date
+        const dateMap = {};
+        visit.photos.forEach((photo, photoIndex) => {
+            const date = typeof photo === 'string' ? '' : (photo.date || '');
+            if (!dateMap[date]) {
+                dateMap[date] = { firstPhotoIndex: photoIndex, count: 0 };
+            }
+            dateMap[date].count++;
+        });
+
+        // Create entry for each date
+        Object.keys(dateMap).forEach(date => {
+            entries.push({
+                visit,
+                date,
+                firstPhotoIndex: dateMap[date].firstPhotoIndex,
+                photoCount: dateMap[date].count
+            });
+        });
     });
 
-    timeline.innerHTML = sortedVisits.map((visit, i) => `
-        <div class="timeline-item" data-index="${i}">
-            <img class="timeline-flag" src="${getFlagUrl(visit.countryCode)}" alt="${visit.country}"
-                 onerror="this.style.display='none'">
-            <span class="timeline-city">${visit.city}</span>
-            <span class="timeline-date">${visit.date || ''}</span>
-        </div>
-    `).join('');
+    // Store entries for click handler
+    timeline.entries = entries;
 
-    // Store sorted visits for reference
-    timeline.sortedVisits = sortedVisits;
+    // Find oldest entry date to determine scroll range
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-11
+
+    let oldestDate = null;
+    entries.forEach(entry => {
+        if (entry.date && (!oldestDate || entry.date < oldestDate)) {
+            oldestDate = entry.date;
+        }
+    });
+
+    // Calculate total months needed for scrolling (extends to oldest entry)
+    let numMonths = 12;
+    if (oldestDate) {
+        const [oldYear, oldMonth] = oldestDate.split('-').map(Number);
+        const monthsBack = (currentYear - oldYear) * 12 + (currentMonth + 1 - oldMonth);
+        numMonths = Math.max(12, monthsBack + 1);
+    }
+
+    const months = [];
+    for (let i = 0; i < numMonths; i++) {
+        const d = new Date(currentYear, currentMonth - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1; // 1-12
+        const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+        const label = d.toLocaleString('en', { month: 'short' }) + (month === 1 || i === numMonths - 1 ? ` '${String(year).slice(-2)}` : '');
+        months.push({ monthStr, label, index: i });
+    }
+
+    // Group entries by month AND deduplicate by country
+    const entriesByMonth = {};
+    entries.forEach((entry, i) => {
+        if (!entry.date) return;
+        const monthIndex = months.findIndex(m => m.monthStr === entry.date);
+        if (monthIndex < 0) return;
+        if (!entriesByMonth[monthIndex]) entriesByMonth[monthIndex] = {};
+
+        // Only keep first entry per country (latest uploaded)
+        const countryCode = entry.visit.countryCode;
+        if (!entriesByMonth[monthIndex][countryCode]) {
+            entriesByMonth[monthIndex][countryCode] = { entry, originalIndex: i };
+        }
+    });
+
+    // Calculate timeline width (80px per month)
+    const monthWidth = 80;
+    const timelineWidth = numMonths * monthWidth + 80;
+
+    // Build month labels
+    const monthLabels = months.map((m, i) => {
+        const position = 40 + (numMonths - 1 - i) * monthWidth;
+        return `<div class="timeline-month${i === 0 ? ' current' : ''}" style="left: ${position}px">${m.label}</div>`;
+    }).join('');
+
+    // Build month ticks
+    const monthTicks = months.map((m, i) => {
+        const position = 40 + (numMonths - 1 - i) * monthWidth;
+        return `<div class="timeline-month-tick" style="left: ${position}px"></div>`;
+    }).join('');
+
+    // Build flag markers with fan layout for multiple countries
+    let flagMarkers = '';
+    Object.keys(entriesByMonth).forEach(monthIndex => {
+        const countryEntries = Object.values(entriesByMonth[monthIndex]);
+        const baseX = 40 + (numMonths - 1 - monthIndex) * monthWidth;
+        const count = Math.min(countryEntries.length, 5); // Max 5 flags
+
+        // Fan layout: spread flags in an arc above the axis point
+        countryEntries.slice(0, 5).forEach((item, i) => {
+            const entry = item.entry;
+
+            // Calculate position in fan layout
+            let offsetX = 0;
+            let offsetY = 0;
+
+            if (count === 1) {
+                offsetX = 0;
+                offsetY = 0;
+            } else if (count === 2) {
+                offsetX = (i === 0 ? -18 : 18);
+                offsetY = 0;
+            } else if (count === 3) {
+                const positions = [
+                    { x: 0, y: -20 },
+                    { x: -20, y: 5 },
+                    { x: 20, y: 5 }
+                ];
+                offsetX = positions[i].x;
+                offsetY = positions[i].y;
+            } else if (count === 4) {
+                const positions = [
+                    { x: 0, y: -22 },
+                    { x: -22, y: 0 },
+                    { x: 22, y: 0 },
+                    { x: 0, y: 22 }
+                ];
+                offsetX = positions[i].x;
+                offsetY = positions[i].y;
+            } else {
+                const positions = [
+                    { x: 0, y: -25 },
+                    { x: -22, y: -8 },
+                    { x: 22, y: -8 },
+                    { x: -14, y: 15 },
+                    { x: 14, y: 15 }
+                ];
+                offsetX = positions[i].x;
+                offsetY = positions[i].y;
+            }
+
+            flagMarkers += `
+                <div class="timeline-flag-marker" data-index="${item.originalIndex}" style="left: ${baseX + offsetX}px; transform: translate(-50%, calc(-100% - 5px - ${-offsetY}px))">
+                    <div class="timeline-tooltip">
+                        <div class="timeline-tooltip-city">${entry.visit.city}</div>
+                        <div class="timeline-tooltip-date">${entry.date}</div>
+                    </div>
+                    <img class="timeline-flag" src="${getFlagUrl(entry.visit.countryCode)}" alt="${entry.visit.country}"
+                         onerror="this.style.display='none'">
+                </div>`;
+        });
+
+        // Show "+N" indicator if more than 5 countries
+        if (countryEntries.length > 5) {
+            flagMarkers += `
+                <div class="timeline-more-indicator" style="left: ${baseX}px">+${countryEntries.length - 5}</div>`;
+        }
+    });
+
+    timeline.innerHTML = `
+        <div class="timeline-container" style="width: ${timelineWidth}px">
+            <div class="timeline-axis"></div>
+            ${monthTicks}
+            <div class="timeline-months">${monthLabels}</div>
+            ${flagMarkers}
+        </div>`;
+
+    // Scroll to right (current month)
+    timeline.scrollLeft = timeline.scrollWidth;
 }
 
-function highlightTimelineItem(visit) {
+function highlightTimelineItem(visit, date) {
     clearTimelineHighlight();
-    const items = timeline.querySelectorAll('.timeline-item');
-    items.forEach((item, i) => {
-        if (timeline.sortedVisits[i] === visit) {
-            item.classList.add('active');
-            item.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+    if (!timeline.entries) return;
+
+    const markers = timeline.querySelectorAll('.timeline-flag-marker');
+    markers.forEach((marker) => {
+        const index = parseInt(marker.dataset.index);
+        const entry = timeline.entries[index];
+        if (entry && entry.visit === visit && (!date || entry.date === date)) {
+            marker.classList.add('active');
+            marker.scrollIntoView({ behavior: 'smooth', inline: 'center' });
         }
     });
 }
 
 function clearTimelineHighlight() {
-    timeline.querySelectorAll('.timeline-item').forEach(item => {
-        item.classList.remove('active');
+    timeline.querySelectorAll('.timeline-flag-marker').forEach(marker => {
+        marker.classList.remove('active');
     });
 }
 
 // Timeline click handler
 timeline.addEventListener('click', (e) => {
-    const item = e.target.closest('.timeline-item');
-    if (!item) return;
+    const marker = e.target.closest('.timeline-flag-marker');
+    if (!marker || !timeline.entries) return;
 
-    const index = parseInt(item.dataset.index);
-    const visit = timeline.sortedVisits[index];
+    const index = parseInt(marker.dataset.index);
+    const entry = timeline.entries[index];
+    if (!entry) return;
 
-    // Fly to city on map
-    map.flyTo([visit.lat, visit.lng], 10, { duration: 1 });
+    // Save current map view before flying
+    previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
 
-    // Open gallery
-    openGallery(visit);
+    // Fly to city on map (use moderate zoom level)
+    map.flyTo([entry.visit.lat, entry.visit.lng], 6, { duration: 1 });
+
+    // Open gallery at the first photo of this date
+    openGallery(entry.visit, entry.firstPhotoIndex);
 });
 
-// Update stats
-function updateStats() {
-    countryCount.textContent = visitedCountryCodes.size;
-    cityCount.textContent = visits.length;
-}
 
 // Load travel data
 async function loadData() {
@@ -271,9 +474,6 @@ async function loadData() {
 
         // Build timeline
         buildTimeline();
-
-        // Update stats
-        updateStats();
 
     } catch (error) {
         console.error('Failed to load data:', error);
