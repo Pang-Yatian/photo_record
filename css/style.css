@@ -617,6 +617,39 @@ body {
     font-size: 12px;
 }
 
+/* Blurred +N overlay for hover preview */
+.hover-preview-more-blur {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hover-preview-more-blur img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(2px);
+    transform: scale(1.1);
+}
+
+.hover-preview-more-blur .plus-n-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
 /* iPhone-style Gallery */
 .gallery {
     position: fixed;
@@ -704,6 +737,7 @@ body {
 
 .gallery-thumbnails {
     display: flex;
+    justify-content: center;
     gap: 8px;
     padding: 16px;
     overflow-x: auto;
@@ -731,6 +765,23 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Gradient fade effect on edge thumbnails to indicate more photos */
+.gallery-thumb.thumb-fade-1 {
+    opacity: 0.35 !important;
+    transform: scale(0.92);
+}
+
+.gallery-thumb.thumb-fade-2 {
+    opacity: 0.15 !important;
+    transform: scale(0.85);
+}
+
+.gallery-thumb.thumb-fade-1.active,
+.gallery-thumb.thumb-fade-2.active {
+    opacity: 1 !important;
+    transform: scale(1);
 }
 
 /* Gallery Controls */
@@ -801,6 +852,8 @@ body {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     cursor: pointer;
     transition: background 0.2s;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 150px;
 }
 
 .timeline-entry:hover {
@@ -858,6 +911,7 @@ body {
     aspect-ratio: 1;
     border-radius: 6px;
     overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .timeline-photo img {
@@ -865,6 +919,8 @@ body {
     height: 100%;
     object-fit: cover;
     transition: transform 0.2s;
+    image-rendering: -webkit-optimize-contrast;
+    will-change: transform;
 }
 
 .timeline-photo:hover img {
@@ -889,6 +945,43 @@ body {
     background: rgba(0, 212, 170, 0.2);
 }
 
+/* Blurred +N overlay for timeline */
+.timeline-photo-more-blur {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+}
+
+.timeline-photo-more-blur img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(3px);
+    transform: scale(1.1);
+}
+
+.timeline-photo-more-blur .plus-n-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-photo-more-blur:hover .plus-n-overlay {
+    background: rgba(0, 212, 170, 0.3);
+}
+
 .timeline-month-header {
     padding: 8px 16px;
     background: rgba(0, 0, 0, 0.3);
@@ -897,9 +990,6 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 /* Admin city list */

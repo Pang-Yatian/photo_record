@@ -27,6 +27,8 @@ let currentVisit = null;
 let currentPhotoIndex = 0;
 let sortedPhotoIndices = [];
 let filteredPhotos = []; // Photos to display (filtered or all)
+let allPhotosGlobal = []; // All photos from all cities, sorted by date
+let isGlobalGallery = false; // true = timeline mode (all photos), false = city mode
 let previousMapView = null; // Store map view before gallery opens
 
 // DOM elements
@@ -41,6 +43,15 @@ const timeline = document.getElementById('timeline');
 // Get country flag URL
 function getFlagUrl(countryCode) {
     return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+}
+
+// Get thumbnail URL (falls back to original if thumb doesn't exist)
+function getThumbUrl(photoPath) {
+    const parts = photoPath.split('/');
+    const folder = parts[0];
+    const filename = parts[1];
+    const thumbFilename = filename.replace(/\.[^.]+$/, '.jpg');
+    return `photos/thumbs/${folder}/${thumbFilename}`;
 }
 
 // Load countries GeoJSON
@@ -100,7 +111,7 @@ function createMarker(visit, zIndex = 100) {
     marker.on('mouseout', hideHoverPreview);
     marker.on('click', () => {
         previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
-        openGallery(visit);
+        openCityGallery(visit);
     });
 
     markers.push({ marker, visit });
@@ -120,6 +131,8 @@ function getSortedPhotos(photos) {
 }
 
 // Show hover preview with max 9 images (sorted by date)
+// If +1 remaining: show 9th image normally
+// If +2 or more: show blurred 9th image with +N overlay
 function showHoverPreview(e, visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
@@ -129,8 +142,9 @@ function showHoverPreview(e, visit) {
     previewTitle.textContent = `${visit.city}, ${visit.country}`;
 
     const sortedPhotos = getSortedPhotos(visit.photos);
-    const photos = sortedPhotos.slice(0, 9);
-    const remaining = sortedPhotos.length - 9;
+    const maxVisible = 8;
+    const photos = sortedPhotos.slice(0, Math.min(maxVisible, sortedPhotos.length));
+    const remainingCount = sortedPhotos.length - maxVisible;
 
     // Photos are now objects with .path
     previewGrid.innerHTML = photos.map(p => {
@@ -138,8 +152,20 @@ function showHoverPreview(e, visit) {
         return `<img src="photos/${photoPath}" alt="">`;
     }).join('');
 
-    if (remaining > 0) {
-        previewGrid.innerHTML += `<div class="hover-preview-more">+${remaining}</div>`;
+    // Handle 9th slot based on remaining count
+    if (remainingCount === 1) {
+        // Show 9th image as normal photo
+        const ninthPhoto = sortedPhotos[maxVisible];
+        const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
+        previewGrid.innerHTML += `<img src="photos/${photoPath}" alt="">`;
+    } else if (remainingCount >= 2) {
+        // Show blurred 9th image with +N overlay
+        const ninthPhoto = sortedPhotos[maxVisible];
+        const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
+        previewGrid.innerHTML += `<div class="hover-preview-more-blur">
+            <img src="photos/${photoPath}" alt="">
+            <span class="plus-n-overlay">+${remainingCount}</span>
+        </div>`;
     }
 
     // Position preview (offset by 50% for timeline width)
@@ -154,31 +180,35 @@ function hideHoverPreview() {
     hoverPreview.classList.remove('visible');
 }
 
-// iPhone-style Gallery
-// dateFilter: if provided, only show photos from that date (timeline click)
-// if null, show all photos (city marker click)
-function openGallery(visit, dateFilter = null) {
+// Build global photo list from all visits
+function buildGlobalPhotoList() {
+    allPhotosGlobal = [];
+    visits.forEach(visit => {
+        if (!visit.photos) return;
+        visit.photos.forEach((photo, photoIndex) => {
+            const date = typeof photo === 'string' ? '' : (photo.date || '');
+            if (!date) return; // Skip photos without date
+            allPhotosGlobal.push({
+                photo,
+                visit,
+                photoIndex,
+                date
+            });
+        });
+    });
+    // Sort by date (newest first)
+    allPhotosGlobal.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// Open gallery for a single city (from city marker click)
+function openCityGallery(visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
+    isGlobalGallery = false;
     currentVisit = visit;
 
-    // Filter photos if dateFilter is provided (timeline click)
-    let photosToShow;
-    if (dateFilter) {
-        photosToShow = visit.photos
-            .map((p, i) => ({ photo: p, originalIndex: i }))
-            .filter(item => {
-                const date = typeof item.photo === 'string' ? '' : (item.photo.date || '');
-                return date === dateFilter;
-            });
-    } else {
-        // Show all photos (city marker click)
-        photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
-    }
-
-    if (photosToShow.length === 0) return;
-
-    // Sort photos by date (newest first)
+    // Get all photos for this city, sorted by date
+    let photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
     photosToShow.sort((a, b) => {
         const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
         const dateB = typeof b.photo === 'string' ? '' : (b.photo.date || '');
@@ -188,36 +218,84 @@ function openGallery(visit, dateFilter = null) {
     });
 
     filteredPhotos = photosToShow;
-    sortedPhotoIndices = photosToShow.map(p => p.originalIndex);
     currentPhotoIndex = 0;
 
-    // Title shows date if filtered
-    if (dateFilter) {
-        galleryTitle.textContent = `${visit.city}, ${visit.country} · ${dateFilter}`;
-    } else {
-        galleryTitle.textContent = `${visit.city}, ${visit.country}`;
-    }
+    galleryTitle.textContent = `${visit.city}, ${visit.country}`;
 
-    // Build thumbnails
-    galleryThumbnails.innerHTML = photosToShow.map((item, i) => {
-        const photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
-        return `<div class="gallery-thumb ${i === currentPhotoIndex ? 'active' : ''}" data-index="${i}">
-            <img src="photos/${photoPath}" alt="">
-        </div>`;
-    }).join('');
-
+    updateGalleryThumbnails();
     updateGalleryImage();
     gallery.classList.remove('hidden');
+}
 
-    // Highlight corresponding timeline item
-    highlightTimelineItem(visit, dateFilter);
+// Open global gallery (from timeline click) - shows all photos from all cities
+function openGlobalGallery(startPhotoPath) {
+    if (allPhotosGlobal.length === 0) return;
+
+    isGlobalGallery = true;
+    currentVisit = null;
+    filteredPhotos = allPhotosGlobal;
+
+    // Find starting position based on photo path
+    currentPhotoIndex = 0;
+    if (startPhotoPath) {
+        const startIdx = allPhotosGlobal.findIndex(item => {
+            const path = typeof item.photo === 'string' ? item.photo : item.photo.path;
+            return path === startPhotoPath;
+        });
+        if (startIdx >= 0) currentPhotoIndex = startIdx;
+    }
+
+    updateGalleryThumbnails();
+    updateGalleryImage();
+    gallery.classList.remove('hidden');
+}
+
+// Build thumbnails with sliding window (max 8 visible at a time for global gallery)
+function updateGalleryThumbnails() {
+    const maxThumbs = 8;
+    let thumbsToShow;
+    let startIdx = 0;
+    let hasMoreBefore = false;
+    let hasMoreAfter = false;
+
+    if (isGlobalGallery && filteredPhotos.length > maxThumbs) {
+        // Sliding window centered on current photo
+        startIdx = currentPhotoIndex - Math.floor(maxThumbs / 2);
+        startIdx = Math.max(0, startIdx);
+        startIdx = Math.min(startIdx, filteredPhotos.length - maxThumbs);
+        thumbsToShow = filteredPhotos.slice(startIdx, startIdx + maxThumbs);
+        hasMoreBefore = startIdx > 0;
+        hasMoreAfter = startIdx + maxThumbs < filteredPhotos.length;
+    } else {
+        thumbsToShow = filteredPhotos;
+    }
+
+    galleryThumbnails.innerHTML = thumbsToShow.map((item, i) => {
+        const actualIndex = startIdx + i;
+        const photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
+
+        // Add gradient fade effect on edge thumbnails (2 levels each side)
+        let edgeClass = '';
+        if (isGlobalGallery && filteredPhotos.length > maxThumbs) {
+            // Left side fade
+            if (i === 0 && hasMoreBefore) edgeClass = 'thumb-fade-2';
+            else if (i === 1 && hasMoreBefore) edgeClass = 'thumb-fade-1';
+            // Right side fade
+            if (i === thumbsToShow.length - 1 && hasMoreAfter) edgeClass = 'thumb-fade-2';
+            else if (i === thumbsToShow.length - 2 && hasMoreAfter) edgeClass = 'thumb-fade-1';
+        }
+
+        return `<div class="gallery-thumb ${actualIndex === currentPhotoIndex ? 'active' : ''} ${edgeClass}" data-index="${actualIndex}">
+            <img src="photos/${photoPath}" alt="" loading="lazy">
+        </div>`;
+    }).join('');
 }
 
 function closeGallery() {
     gallery.classList.add('hidden');
     currentVisit = null;
-    sortedPhotoIndices = [];
     filteredPhotos = [];
+    isGlobalGallery = false;
     clearTimelineHighlight();
 
     // Restore previous map view
@@ -228,20 +306,41 @@ function closeGallery() {
 }
 
 function updateGalleryImage() {
-    if (!currentVisit || sortedPhotoIndices.length === 0) return;
+    if (filteredPhotos.length === 0) return;
 
-    const originalIndex = sortedPhotoIndices[currentPhotoIndex];
-    const photo = currentVisit.photos[originalIndex];
-    const photoPath = typeof photo === 'string' ? photo : photo.path;
-    const photoDate = typeof photo === 'string' ? '' : (photo.date || '');
+    const item = filteredPhotos[currentPhotoIndex];
+    if (!item) return;
+
+    let photoPath, photoDate, city, country;
+
+    if (isGlobalGallery) {
+        // Global mode - item has visit info
+        photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
+        photoDate = item.date;
+        city = item.visit.city;
+        country = item.visit.country;
+        galleryTitle.textContent = `${city}, ${country}`;
+    } else {
+        // City mode - item has photo and originalIndex
+        const photo = item.photo;
+        photoPath = typeof photo === 'string' ? photo : photo.path;
+        photoDate = typeof photo === 'string' ? '' : (photo.date || '');
+        galleryTitle.textContent = `${currentVisit.city}, ${currentVisit.country}`;
+    }
 
     galleryImage.src = `photos/${photoPath}`;
     galleryDate.textContent = photoDate;
 
-    // Update thumbnail active state
-    galleryThumbnails.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
-        thumb.classList.toggle('active', i === currentPhotoIndex);
-    });
+    // Rebuild thumbnails for sliding window in global mode
+    if (isGlobalGallery) {
+        updateGalleryThumbnails();
+    } else {
+        // Update thumbnail active state
+        galleryThumbnails.querySelectorAll('.gallery-thumb').forEach((thumb) => {
+            const idx = parseInt(thumb.dataset.index);
+            thumb.classList.toggle('active', idx === currentPhotoIndex);
+        });
+    }
 
     // Scroll active thumbnail into view
     const activeThumb = galleryThumbnails.querySelector('.gallery-thumb.active');
@@ -251,7 +350,7 @@ function updateGalleryImage() {
 }
 
 function navigateGallery(direction) {
-    if (!currentVisit || filteredPhotos.length === 0) return;
+    if (filteredPhotos.length === 0) return;
     const newIndex = currentPhotoIndex + direction;
     if (newIndex >= 0 && newIndex < filteredPhotos.length) {
         currentPhotoIndex = newIndex;
@@ -309,10 +408,32 @@ function buildTimeline() {
             html += `<div class="timeline-month-header">${monthLabel}</div>`;
         }
 
-        // Show 4 photos + more indicator for remaining
-        const displayPhotos = 4;
-        const previewPhotos = entry.photos.slice(0, displayPhotos);
-        const remainingCount = entry.photos.length - displayPhotos;
+        // Show up to 4 photos normally, then handle +N logic for 5th slot
+        // If +1 remaining: show 5th image normally
+        // If +2 or more: show blurred 5th image with +N overlay
+        const maxVisible = 4;
+        const totalPhotos = entry.photos.length;
+        const previewPhotos = entry.photos.slice(0, Math.min(maxVisible, totalPhotos));
+        const remainingCount = totalPhotos - maxVisible;
+
+        // Build the +N slot if needed
+        let plusNSlot = '';
+        if (remainingCount === 1) {
+            // Show 9th image as normal photo
+            const ninthPhoto = entry.photos[maxVisible];
+            const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
+            const thumbPath = getThumbUrl(photoPath);
+            plusNSlot = `<div class="timeline-photo" data-path="${photoPath}"><img src="${thumbPath}" alt="" loading="lazy" decoding="async" onerror="this.src='photos/${photoPath}'"></div>`;
+        } else if (remainingCount >= 2) {
+            // Show blurred 9th image with +N overlay
+            const ninthPhoto = entry.photos[maxVisible];
+            const photoPath = typeof ninthPhoto === 'string' ? ninthPhoto : ninthPhoto.path;
+            const thumbPath = getThumbUrl(photoPath);
+            plusNSlot = `<div class="timeline-photo-more-blur" data-path="${photoPath}">
+                <img src="${thumbPath}" alt="" loading="lazy" decoding="async" onerror="this.src='photos/${photoPath}'">
+                <span class="plus-n-overlay">+${remainingCount}</span>
+            </div>`;
+        }
 
         html += `
             <div class="timeline-entry" data-index="${i}">
@@ -327,9 +448,10 @@ function buildTimeline() {
                 <div class="timeline-photos">
                     ${previewPhotos.map(p => {
                         const photoPath = typeof p === 'string' ? p : p.path;
-                        return `<div class="timeline-photo"><img src="photos/${photoPath}" alt=""></div>`;
+                        const thumbPath = getThumbUrl(photoPath);
+                        return `<div class="timeline-photo" data-path="${photoPath}"><img src="${thumbPath}" alt="" loading="lazy" decoding="async" onerror="this.src='photos/${photoPath}'"></div>`;
                     }).join('')}
-                    ${remainingCount > 0 ? `<div class="timeline-photo-more">+${remainingCount}</div>` : ''}
+                    ${plusNSlot}
                 </div>
             </div>`;
     });
@@ -358,23 +480,33 @@ function clearTimelineHighlight() {
     });
 }
 
-// Timeline click handler
+// Timeline click handler - opens global gallery with all photos
 timeline.addEventListener('click', (e) => {
+    // Check if a specific photo or +N was clicked
+    const photoEl = e.target.closest('.timeline-photo, .timeline-photo-more, .timeline-photo-more-blur');
     const entryEl = e.target.closest('.timeline-entry');
-    if (!entryEl || !timeline.entries) return;
 
-    const index = parseInt(entryEl.dataset.index);
-    const entry = timeline.entries[index];
-    if (!entry) return;
+    if (!entryEl) return;
 
-    // Save current map view before flying
+    // Get the photo path to start at
+    let startPhotoPath = null;
+    if (photoEl && photoEl.dataset.path) {
+        startPhotoPath = photoEl.dataset.path;
+    } else {
+        // Clicked on header - start at first photo of this entry
+        const index = parseInt(entryEl.dataset.index);
+        const entry = timeline.entries?.[index];
+        if (entry && entry.photos.length > 0) {
+            const firstPhoto = entry.photos[0];
+            startPhotoPath = typeof firstPhoto === 'string' ? firstPhoto : firstPhoto.path;
+        }
+    }
+
+    // Save current map view before opening gallery
     previousMapView = { center: map.getCenter(), zoom: map.getZoom() };
 
-    // Fly to city on map (use moderate zoom level)
-    map.flyTo([entry.visit.lat, entry.visit.lng], 6, { duration: 1 });
-
-    // Open gallery with only photos from this date
-    openGallery(entry.visit, entry.date);
+    // Open global gallery with all photos, starting at clicked photo
+    openGlobalGallery(startPhotoPath);
 });
 
 
@@ -403,6 +535,9 @@ async function loadData() {
 
         // Build timeline
         buildTimeline();
+
+        // Build global photo list for timeline gallery
+        buildGlobalPhotoList();
 
     } catch (error) {
         console.error('Failed to load data:', error);
