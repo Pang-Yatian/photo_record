@@ -112,15 +112,45 @@ function getThumbUrl(photoPath) {
     return `photos/thumbs/${folder}/${thumbFilename}`;
 }
 
-// Skip country GeoJSON - just use the globe imagery with markers
+// Country highlighting with GeoJSON
+let countriesDataSource = null;
+
 async function loadCountries() {
-    // Country polygons disabled due to Cesium rendering issues
-    // The Natural Earth imagery already shows country borders
+    try {
+        countriesDataSource = await Cesium.GeoJsonDataSource.load(
+            'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson',
+            {
+                stroke: Cesium.Color.TRANSPARENT,
+                fill: Cesium.Color.TRANSPARENT,
+                strokeWidth: 0
+            }
+        );
+        viewer.dataSources.add(countriesDataSource);
+    } catch (error) {
+        console.error('Failed to load countries:', error);
+    }
 }
 
-// No-op since we're not using country polygons
 function highlightCountries() {
-    // Disabled - using globe imagery instead
+    if (!countriesDataSource) return;
+
+    const entities = countriesDataSource.entities.values;
+    for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i];
+        if (!entity.polygon) continue;
+
+        const props = entity.properties;
+        const code = props['ISO3166-1-Alpha-2']?.getValue() ||
+                     props.ISO_A2?.getValue();
+
+        if (visitedCountryCodes.has(code)) {
+            entity.polygon.material = Cesium.Color.fromCssColorString('#00d4aa').withAlpha(0.5);
+        } else {
+            entity.polygon.material = Cesium.Color.TRANSPARENT;
+        }
+        // Disable outlines to avoid rendering errors
+        entity.polygon.outline = false;
+    }
 }
 
 // Create marker for a city (hide when on back of globe)
@@ -132,7 +162,6 @@ function createMarker(visit, zIndex = 100) {
             color: Cesium.Color.fromCssColorString('#00d4aa'),
             outlineColor: Cesium.Color.WHITE,
             outlineWidth: 2,
-            // Remove disableDepthTestDistance so markers hide behind globe
         },
         properties: {
             visit: visit,
