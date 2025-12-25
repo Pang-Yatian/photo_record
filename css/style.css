@@ -531,7 +531,7 @@ body {
 .toast {
     position: fixed;
     bottom: 30px;
-    left: calc(280px + 50%);
+    left: 75%;
     transform: translateX(-50%);
     background: #2a2a4e;
     color: #fff;
@@ -770,7 +770,7 @@ body {
     position: fixed;
     top: 60px;
     left: 0;
-    width: 280px;
+    width: 50%;
     bottom: 0;
     background: rgba(26, 26, 46, 0.98);
     backdrop-filter: blur(10px);
@@ -779,6 +779,8 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 16px 0;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .timeline::-webkit-scrollbar {
@@ -849,12 +851,12 @@ body {
 .timeline-photos {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 4px;
+    gap: 6px;
 }
 
 .timeline-photo {
     aspect-ratio: 1;
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
 }
 
@@ -867,6 +869,24 @@ body {
 
 .timeline-photo:hover img {
     transform: scale(1.1);
+}
+
+.timeline-photo-more {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #00d4aa;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.timeline-photo-more:hover {
+    background: rgba(0, 212, 170, 0.2);
 }
 
 .timeline-month-header {
@@ -1031,12 +1051,12 @@ body {
 
 /* Adjust map for timeline on left */
 #map {
-    left: 280px;
+    left: 50%;
     bottom: 0;
 }
 
 /* Admin page */
 .admin-page #map {
-    left: 280px;
+    left: 50%;
     bottom: 0;
 }

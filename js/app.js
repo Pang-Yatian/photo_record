@@ -26,6 +26,7 @@ let markers = [];
 let currentVisit = null;
 let currentPhotoIndex = 0;
 let sortedPhotoIndices = [];
+let filteredPhotos = []; // Photos to display (filtered or all)
 let previousMapView = null; // Store map view before gallery opens
 
 // DOM elements
@@ -141,10 +142,11 @@ function showHoverPreview(e, visit) {
         previewGrid.innerHTML += `<div class="hover-preview-more">+${remaining}</div>`;
     }
 
-    // Position preview
+    // Position preview (offset by 50% for timeline width)
     const point = map.latLngToContainerPoint(e.latlng);
-    hoverPreview.style.left = `${point.x + 20}px`;
-    hoverPreview.style.top = `${point.y - 20}px`;
+    const mapOffset = window.innerWidth * 0.5;
+    hoverPreview.style.left = `${mapOffset + point.x + 20}px`;
+    hoverPreview.style.top = `${point.y + 60}px`;
     hoverPreview.classList.add('visible');
 }
 
@@ -153,34 +155,51 @@ function hideHoverPreview() {
 }
 
 // iPhone-style Gallery
-function openGallery(visit, startPhotoIndex = null) {
+// dateFilter: if provided, only show photos from that date (timeline click)
+// if null, show all photos (city marker click)
+function openGallery(visit, dateFilter = null) {
     if (!visit.photos || visit.photos.length === 0) return;
 
     currentVisit = visit;
 
-    // Sort photos by date and track original indices
-    const photosWithIndex = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
-    photosWithIndex.sort((a, b) => {
+    // Filter photos if dateFilter is provided (timeline click)
+    let photosToShow;
+    if (dateFilter) {
+        photosToShow = visit.photos
+            .map((p, i) => ({ photo: p, originalIndex: i }))
+            .filter(item => {
+                const date = typeof item.photo === 'string' ? '' : (item.photo.date || '');
+                return date === dateFilter;
+            });
+    } else {
+        // Show all photos (city marker click)
+        photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
+    }
+
+    if (photosToShow.length === 0) return;
+
+    // Sort photos by date (newest first)
+    photosToShow.sort((a, b) => {
         const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
         const dateB = typeof b.photo === 'string' ? '' : (b.photo.date || '');
         if (!dateA) return 1;
         if (!dateB) return -1;
         return dateB.localeCompare(dateA);
     });
-    sortedPhotoIndices = photosWithIndex.map(p => p.originalIndex);
 
-    // Find starting position
-    if (startPhotoIndex !== null) {
-        currentPhotoIndex = sortedPhotoIndices.indexOf(startPhotoIndex);
-        if (currentPhotoIndex < 0) currentPhotoIndex = 0;
+    filteredPhotos = photosToShow;
+    sortedPhotoIndices = photosToShow.map(p => p.originalIndex);
+    currentPhotoIndex = 0;
+
+    // Title shows date if filtered
+    if (dateFilter) {
+        galleryTitle.textContent = `${visit.city}, ${visit.country} · ${dateFilter}`;
     } else {
-        currentPhotoIndex = 0;
+        galleryTitle.textContent = `${visit.city}, ${visit.country}`;
     }
 
-    galleryTitle.textContent = `${visit.city}, ${visit.country}`;
-
-    // Build thumbnails in sorted order
-    galleryThumbnails.innerHTML = photosWithIndex.map((item, i) => {
+    // Build thumbnails
+    galleryThumbnails.innerHTML = photosToShow.map((item, i) => {
         const photoPath = typeof item.photo === 'string' ? item.photo : item.photo.path;
         return `<div class="gallery-thumb ${i === currentPhotoIndex ? 'active' : ''}" data-index="${i}">
             <img src="photos/${photoPath}" alt="">
@@ -191,13 +210,14 @@ function openGallery(visit, startPhotoIndex = null) {
     gallery.classList.remove('hidden');
 
     // Highlight corresponding timeline item
-    highlightTimelineItem(visit);
+    highlightTimelineItem(visit, dateFilter);
 }
 
 function closeGallery() {
     gallery.classList.add('hidden');
     currentVisit = null;
     sortedPhotoIndices = [];
+    filteredPhotos = [];
     clearTimelineHighlight();
 
     // Restore previous map view
@@ -231,9 +251,9 @@ function updateGalleryImage() {
 }
 
 function navigateGallery(direction) {
-    if (!currentVisit) return;
+    if (!currentVisit || filteredPhotos.length === 0) return;
     const newIndex = currentPhotoIndex + direction;
-    if (newIndex >= 0 && newIndex < currentVisit.photos.length) {
+    if (newIndex >= 0 && newIndex < filteredPhotos.length) {
         currentPhotoIndex = newIndex;
         updateGalleryImage();
     }
@@ -289,8 +309,10 @@ function buildTimeline() {
             html += `<div class="timeline-month-header">${monthLabel}</div>`;
         }
 
-        // Get up to 5 photos for preview
-        const previewPhotos = entry.photos.slice(0, 5);
+        // Show 4 photos + more indicator for remaining
+        const displayPhotos = 4;
+        const previewPhotos = entry.photos.slice(0, displayPhotos);
+        const remainingCount = entry.photos.length - displayPhotos;
 
         html += `
             <div class="timeline-entry" data-index="${i}">
@@ -307,6 +329,7 @@ function buildTimeline() {
                         const photoPath = typeof p === 'string' ? p : p.path;
                         return `<div class="timeline-photo"><img src="photos/${photoPath}" alt=""></div>`;
                     }).join('')}
+                    ${remainingCount > 0 ? `<div class="timeline-photo-more">+${remainingCount}</div>` : ''}
                 </div>
             </div>`;
     });
@@ -350,8 +373,8 @@ timeline.addEventListener('click', (e) => {
     // Fly to city on map (use moderate zoom level)
     map.flyTo([entry.visit.lat, entry.visit.lng], 6, { duration: 1 });
 
-    // Open gallery at the first photo of this date
-    openGallery(entry.visit, entry.firstPhotoIndex);
+    // Open gallery with only photos from this date
+    openGallery(entry.visit, entry.date);
 });
 
 
