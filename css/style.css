@@ -419,23 +419,61 @@ body {
     transition: opacity 0.3s ease-out;
 }
 
+.photo-viewer-info {
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.photo-viewer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.photo-viewer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.photo-viewer-title {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.photo-viewer-date {
+    color: #888;
+    font-size: 12px;
+}
+
+.photo-viewer-counter {
+    color: #aaa;
+    font-size: 12px;
+    min-width: 45px;
+    text-align: right;
+}
+
 .photo-viewer-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
     background: rgba(255, 255, 255, 0.1);
     border: none;
     color: #fff;
-    width: 44px;
-    height: 44px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    font-size: 20px;
+    font-size: 16px;
     cursor: pointer;
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .photo-viewer-nav:hover:not([disabled]) {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .photo-viewer-nav[disabled] {
@@ -443,42 +481,15 @@ body {
     cursor: not-allowed;
 }
 
-.photo-viewer-nav.prev {
-    left: 16px;
-}
-
-.photo-viewer-nav.next {
-    right: 16px;
-}
-
-.photo-viewer-info {
-    padding: 12px 20px;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.photo-viewer-title {
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.photo-viewer-date {
-    color: #888;
-    font-size: 13px;
-}
-
 /* Autoplay button */
 .autoplay-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(0, 212, 170, 0.3);
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(0, 212, 170, 0.5);
+    border-radius: 6px;
+    background: transparent;
     color: #00d4aa;
-    font-size: 14px;
+    font-size: 12px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -487,12 +498,19 @@ body {
 }
 
 .autoplay-btn:hover {
-    background: rgba(0, 212, 170, 0.5);
+    background: rgba(0, 212, 170, 0.2);
+    border-color: #00d4aa;
 }
 
 .autoplay-btn.playing {
-    background: #00d4aa;
-    color: #0a0a15;
+    background: rgba(0, 212, 170, 0.3);
+    border-color: #00d4aa;
+    animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { border-color: #00d4aa; }
+    50% { border-color: rgba(0, 212, 170, 0.4); }
 }
 
 /* Map - right side */

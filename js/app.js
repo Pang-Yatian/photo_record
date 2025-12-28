@@ -54,7 +54,8 @@ let isGlobalGallery = false;
 // Autoplay state
 let autoplayInterval = null;
 let isAutoplayActive = false;
-const AUTOPLAY_DELAY = 6500; // 6.5 seconds per photo
+const AUTOPLAY_DELAY = 5500; // 5.5 seconds per photo
+const preloadedImages = new Map(); // Cache for preloaded images
 
 // Hover preview state
 let isHoverPinned = false;
@@ -451,14 +452,20 @@ function renderViewer() {
     photoViewer.innerHTML = `
         <div class="photo-viewer-content">
             <div class="photo-viewer-main">
-                <button class="photo-viewer-nav prev" ${currentPhotoIndex === 0 ? 'disabled' : ''}>‹</button>
                 <img src="photos/${photoPath}" alt="">
-                <button class="photo-viewer-nav next" ${currentPhotoIndex === filteredPhotos.length - 1 ? 'disabled' : ''}>›</button>
             </div>
             <div class="photo-viewer-info">
-                <button class="autoplay-btn ${isAutoplayActive ? 'playing' : ''}">${isAutoplayActive ? '⏸' : '▶'}</button>
-                <span class="photo-viewer-title">${title}</span>
-                <span class="photo-viewer-date">${photoDate} · ${currentPhotoIndex + 1}/${filteredPhotos.length}</span>
+                <div class="photo-viewer-left">
+                    <button class="autoplay-btn ${isAutoplayActive ? 'playing' : ''}" title="${isAutoplayActive ? 'Pause slideshow' : 'Play slideshow'}">
+                        ${isAutoplayActive ? '⏸︎' : '⏵'}
+                    </button>
+                    <span class="photo-viewer-title">${title}</span>
+                </div>
+                <div class="photo-viewer-right">
+                    <span class="photo-viewer-date">${photoDate} · ${currentPhotoIndex + 1}/${filteredPhotos.length}</span>
+                    <button class="photo-viewer-nav prev" ${currentPhotoIndex === 0 ? 'disabled' : ''} title="Previous">‹</button>
+                    <button class="photo-viewer-nav next" ${currentPhotoIndex === filteredPhotos.length - 1 ? 'disabled' : ''} title="Next">›</button>
+                </div>
             </div>
         </div>
     `;
@@ -510,23 +517,75 @@ function startAutoplay() {
     isAutoplayActive = true;
     updateAutoplayButton();
 
-    autoplayInterval = setInterval(() => {
-        if (currentPhotoIndex < filteredPhotos.length - 1) {
-            currentPhotoIndex++;
-        } else {
-            // Loop back to start
-            currentPhotoIndex = 0;
-        }
-        transitionToPhoto();
-    }, AUTOPLAY_DELAY);
+    // Preload next images immediately
+    preloadNextImages(3);
+
+    // Use setTimeout chain instead of setInterval for consistent timing
+    function scheduleNext() {
+        autoplayInterval = setTimeout(() => {
+            if (!isAutoplayActive) return;
+
+            if (currentPhotoIndex < filteredPhotos.length - 1) {
+                currentPhotoIndex++;
+            } else {
+                // Loop back to start
+                currentPhotoIndex = 0;
+            }
+
+            // Preload next images
+            preloadNextImages(3);
+
+            transitionToPhoto(() => {
+                // Schedule next only after transition completes
+                if (isAutoplayActive) {
+                    scheduleNext();
+                }
+            });
+        }, AUTOPLAY_DELAY);
+    }
+    scheduleNext();
 }
 
 function stopAutoplay() {
     if (!isAutoplayActive) return;
     isAutoplayActive = false;
     if (autoplayInterval) {
-        clearInterval(autoplayInterval);
+        clearTimeout(autoplayInterval);
         autoplayInterval = null;
+    }
+}
+
+// Preload next N images for smooth transitions
+function preloadNextImages(count = 3) {
+    if (filteredPhotos.length === 0) return;
+
+    for (let i = 1; i <= count; i++) {
+        let nextIndex = currentPhotoIndex + i;
+        if (nextIndex >= filteredPhotos.length) {
+            nextIndex = nextIndex - filteredPhotos.length; // Loop around
+        }
+
+        const item = filteredPhotos[nextIndex];
+        if (!item) continue;
+
+        const photo = item.photo;
+        const photoPath = typeof photo === 'string' ? photo : photo.path;
+        const src = `photos/${photoPath}`;
+
+        // Skip if already preloaded
+        if (preloadedImages.has(src)) continue;
+
+        const img = new Image();
+        img.src = src;
+        preloadedImages.set(src, img);
+    }
+
+    // Clean up old preloaded images (keep only recent ones)
+    if (preloadedImages.size > 10) {
+        const keys = Array.from(preloadedImages.keys());
+        for (let i = 0; i < keys.length - 10; i++) {
+            preloadedImages.delete(keys[i]);
+        }
     }
 }
 
@@ -539,10 +598,11 @@ function updateAutoplayButton() {
 }
 
 // Smooth transition to new photo
-function transitionToPhoto() {
+function transitionToPhoto(callback) {
     const img = photoViewer.querySelector('.photo-viewer-main img');
     if (!img) {
         renderViewer();
+        if (callback) callback();
         return;
     }
 
@@ -585,9 +645,10 @@ function transitionToPhoto() {
         // Hide image completely while changing src
         img.style.visibility = 'hidden';
 
-        // Preload new image, then fade in
         const newSrc = `photos/${photoPath}`;
-        const preloadImg = new Image();
+
+        // Check if already preloaded
+        const preloaded = preloadedImages.get(newSrc);
 
         const showImage = () => {
             img.src = newSrc;
@@ -596,13 +657,21 @@ function transitionToPhoto() {
                 requestAnimationFrame(() => {
                     img.style.visibility = 'visible';
                     img.style.opacity = '1';
+                    if (callback) callback();
                 });
             });
         };
 
-        preloadImg.onload = showImage;
-        preloadImg.onerror = showImage;
-        preloadImg.src = newSrc;
+        if (preloaded && preloaded.complete) {
+            // Image already loaded, show immediately
+            showImage();
+        } else {
+            // Need to load/wait for image
+            const preloadImg = preloaded || new Image();
+            preloadImg.onload = showImage;
+            preloadImg.onerror = showImage;
+            if (!preloaded) preloadImg.src = newSrc;
+        }
     }, 300);
 }
 
