@@ -126,7 +126,7 @@ body {
 /* FAB */
 .fab {
     position: fixed;
-    bottom: 30px;
+    bottom: 170px;
     right: 30px;
     width: 56px;
     height: 56px;
@@ -369,32 +369,203 @@ body {
     justify-content: center;
 }
 
-/* Map */
+/* Photo Viewer - left side */
+.photo-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 60%;
+    bottom: 130px;
+    background: #0a0a15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.photo-viewer-empty {
+    color: #444;
+    font-size: 16px;
+    text-align: center;
+}
+
+.photo-viewer-empty .icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.photo-viewer-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-viewer-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.photo-viewer-main img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: opacity 0.3s ease-out;
+}
+
+.photo-viewer-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.photo-viewer-nav:hover:not([disabled]) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.photo-viewer-nav[disabled] {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.photo-viewer-nav.prev {
+    left: 16px;
+}
+
+.photo-viewer-nav.next {
+    right: 16px;
+}
+
+.photo-viewer-info {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.photo-viewer-title {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.photo-viewer-date {
+    color: #888;
+    font-size: 13px;
+}
+
+/* Autoplay button */
+.autoplay-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.autoplay-btn:hover {
+    background: rgba(0, 212, 170, 0.5);
+}
+
+.autoplay-btn.playing {
+    background: #00d4aa;
+    color: #0a0a15;
+}
+
+/* Map - right side */
 #map {
     position: fixed;
-    top: 60px;
-    left: 0;
+    top: 0;
+    left: 60%;
     right: 0;
-    bottom: 0;
+    bottom: 130px;
 }
 
-/* Hide Cesium default UI elements */
-.cesium-viewer-bottom,
-.cesium-viewer-toolbar,
-.cesium-credit-logoContainer,
-.cesium-credit-textContainer,
-.cesium-viewer-cesiumWidgetContainer credit,
-.cesium-widget-credits {
-    display: none !important;
+.map-title {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    z-index: 10;
+    pointer-events: none;
 }
 
-.cesium-viewer .cesium-widget-credits {
-    display: none !important;
+/* D3 SVG Map Styling */
+#map svg {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
 }
 
-/* Cesium canvas styling */
-.cesium-widget canvas {
-    border-radius: 0;
+#map svg:active {
+    cursor: grabbing;
+}
+
+/* Country paths */
+.country {
+    fill: #2a2a4e;
+    stroke: #3a3a5e;
+    stroke-width: 0.5px;
+    transition: fill 0.2s ease;
+}
+
+.country:hover {
+    fill: #3a3a6e;
+}
+
+.country.visited {
+    fill: rgba(0, 212, 170, 0.4);
+}
+
+.country.visited:hover {
+    fill: rgba(0, 212, 170, 0.55);
+}
+
+/* City markers */
+.city-marker {
+    fill: #00d4aa;
+    stroke: #fff;
+    stroke-width: 2px;
+    cursor: pointer;
+    transition: fill 0.3s, stroke 0.3s;
+}
+
+.city-marker.active-marker {
+    fill: #ff6b6b;
+    stroke: #fff;
+    filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.8));
+}
+
+/* Ocean background */
+.ocean {
+    fill: #1a1a2e;
 }
 
 /* Lightbox */
@@ -519,8 +690,8 @@ body {
 /* Toast */
 .toast {
     position: fixed;
-    bottom: 30px;
-    left: 75%;
+    bottom: 170px;
+    left: 50%;
     transform: translateX(-50%);
     background: #2a2a4e;
     color: #fff;
@@ -572,6 +743,10 @@ body {
 
 .hover-preview.visible {
     opacity: 1;
+}
+
+.hover-preview.pinned {
+    pointer-events: auto;
 }
 
 .hover-preview-title {
@@ -637,6 +812,66 @@ body {
     font-size: 12px;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Multi-city hover preview */
+.hover-multi-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hover-city-block {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.hover-city-block:last-child {
+    border-bottom: none;
+}
+
+.hover-preview.pinned .hover-city-block {
+    cursor: pointer;
+}
+
+.hover-preview.pinned .hover-city-block:hover {
+    background: rgba(0, 212, 170, 0.15);
+}
+
+.hover-preview-header {
+    color: #00d4aa;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.hover-city-title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.hover-city-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+}
+
+.hover-city-grid img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 3px;
+}
+
+.hover-city-grid .hover-preview-more-blur {
+    width: 50px;
+    height: 50px;
 }
 
 /* iPhone-style Gallery */
@@ -805,26 +1040,29 @@ body {
     background: rgba(220, 53, 69, 0.5);
 }
 
-/* Timeline - vertical left sidebar */
+/* Timeline - horizontal bottom bar */
 .timeline {
     position: fixed;
-    top: 60px;
     left: 0;
-    width: 50%;
+    right: 0;
     bottom: 0;
+    height: 130px;
     background: rgba(26, 26, 46, 0.98);
     backdrop-filter: blur(10px);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 900;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 16px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 12px;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
 }
 
 .timeline::-webkit-scrollbar {
-    width: 6px;
+    height: 8px;
 }
 
 .timeline::-webkit-scrollbar-track {
@@ -833,72 +1071,69 @@ body {
 
 .timeline::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
 .timeline-entry {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
-    content-visibility: auto;
-    contain-intrinsic-size: 0 150px;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .timeline-entry:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .timeline-entry.active {
-    background: rgba(0, 212, 170, 0.1);
-    border-left: 3px solid #00d4aa;
+    background: rgba(0, 212, 170, 0.15);
+    border: 1px solid rgba(0, 212, 170, 0.3);
 }
 
 .timeline-entry-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: 6px;
+    padding: 0 2px;
 }
 
 .timeline-flag {
-    width: 28px;
-    height: 21px;
-    border-radius: 3px;
+    width: 16px;
+    height: 12px;
+    border-radius: 2px;
     object-fit: cover;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     flex-shrink: 0;
-}
-
-.timeline-entry-info {
-    flex: 1;
-    min-width: 0;
 }
 
 .timeline-entry-city {
     color: #fff;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 600;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .timeline-entry-date {
-    color: #888;
-    font-size: 11px;
+    color: #666;
+    font-size: 10px;
+    white-space: nowrap;
 }
 
 .timeline-photos {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
+    display: flex;
+    gap: 3px;
+    align-items: center;
 }
 
 .timeline-photo {
-    aspect-ratio: 1;
-    border-radius: 6px;
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: 4px;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.05);
 }
@@ -913,18 +1148,34 @@ body {
 }
 
 .timeline-photo:hover img {
-    transform: scale(1.1);
+    transform: scale(1.08);
+}
+
+.timeline-photo.playing {
+    box-shadow: 0 0 0 3px #00d4aa;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 0 3px #00d4aa, 0 0 10px rgba(0, 212, 170, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 0 3px #00d4aa, 0 0 20px rgba(0, 212, 170, 0.8);
+    }
 }
 
 .timeline-photo-more {
-    aspect-ratio: 1;
-    border-radius: 6px;
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: 4px;
     background: rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #00d4aa;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
@@ -936,8 +1187,10 @@ body {
 
 /* Blurred +N overlay for timeline */
 .timeline-photo-more-blur {
-    aspect-ratio: 1;
-    border-radius: 6px;
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: 4px;
     overflow: hidden;
     position: relative;
     cursor: pointer;
@@ -969,16 +1222,6 @@ body {
 
 .timeline-photo-more-blur:hover .plus-n-overlay {
     background: rgba(0, 212, 170, 0.3);
-}
-
-.timeline-month-header {
-    padding: 8px 16px;
-    background: rgba(0, 0, 0, 0.3);
-    color: #00d4aa;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 /* Admin city list */
@@ -1128,23 +1371,11 @@ body {
     color: #1a1a2e;
 }
 
-/* Adjust map for timeline on left */
-#map {
-    left: 50%;
-    bottom: 0;
-}
-
-/* Admin page */
-.admin-page #map {
-    left: 50%;
-    bottom: 0;
-}
-
 /* Zoom Controls */
 .zoom-controls {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
+    bottom: 150px;
+    right: 20px;
     display: flex;
     flex-direction: column;
     gap: 8px;

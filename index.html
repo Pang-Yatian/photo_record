@@ -4,18 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gallery</title>
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Header -->
-    <header id="header">
-        <h1>Gallery</h1>
-    </header>
+    <!-- Photo Viewer - left side -->
+    <div id="photo-viewer" class="photo-viewer">
+        <div class="photo-viewer-empty">
+            <div class="icon">🌍</div>
+            <div>Click a city or photo to view</div>
+        </div>
+    </div>
 
-    <!-- Map -->
-    <div id="map"></div>
+    <!-- Map - right side -->
+    <div id="map">
+        <div class="map-title">Gallery</div>
+    </div>
 
     <!-- Zoom Controls -->
     <div id="zoom-controls" class="zoom-controls">
