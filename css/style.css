@@ -1463,3 +1463,182 @@ body {
 .zoom-btn:active {
     transform: scale(0.95);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    /* Photo Viewer - top section */
+    .photo-viewer {
+        position: relative;
+        width: 100%;
+        height: 45vh;
+        min-height: 280px;
+        bottom: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .photo-viewer-main img {
+        max-height: calc(45vh - 50px);
+    }
+
+    .photo-viewer-info {
+        padding: 8px 12px;
+    }
+
+    .photo-viewer-title {
+        font-size: 12px;
+    }
+
+    .photo-viewer-date {
+        font-size: 11px;
+    }
+
+    .photo-viewer-nav {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .autoplay-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+
+    /* Map - middle section */
+    #map {
+        position: relative;
+        left: 0;
+        width: 100%;
+        height: 35vh;
+        min-height: 200px;
+        bottom: auto;
+    }
+
+    .map-title {
+        top: 6px;
+        left: 8px;
+        right: 8px;
+    }
+
+    .map-title-main {
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .map-title-sub {
+        display: none;
+    }
+
+    .map-title-flags {
+        margin-top: 4px;
+        gap: 3px;
+        max-width: 100%;
+    }
+
+    .map-title-flags img {
+        width: 14px;
+        height: 10px;
+    }
+
+    /* Zoom Controls - hide on mobile, use pinch to zoom */
+    .zoom-controls {
+        display: none;
+    }
+
+    /* Timeline - bottom section */
+    .timeline {
+        position: relative;
+        height: auto;
+        min-height: 120px;
+        padding: 6px 8px;
+    }
+
+    .timeline-entry {
+        padding: 4px 6px;
+    }
+
+    .timeline-entry-header {
+        gap: 4px;
+    }
+
+    .timeline-flag {
+        width: 14px;
+        height: 10px;
+    }
+
+    .timeline-entry-city {
+        font-size: 9px;
+    }
+
+    .timeline-entry-date {
+        font-size: 9px;
+    }
+
+    .timeline-photo {
+        width: 70px;
+        height: 70px;
+    }
+
+    .timeline-photo-more,
+    .timeline-photo-more-blur {
+        width: 70px;
+        height: 70px;
+    }
+
+    /* Hover Preview - adjust for mobile */
+    .hover-preview {
+        max-width: 90vw;
+        left: 5vw !important;
+        right: 5vw !important;
+    }
+
+    .hover-preview-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .hover-preview-grid img {
+        width: 60px;
+        height: 60px;
+    }
+
+    /* Gallery Modal */
+    .gallery {
+        padding: 10px;
+    }
+
+    .gallery-header h2 {
+        font-size: 16px;
+    }
+
+    .gallery-nav {
+        width: 36px;
+        height: 36px;
+        font-size: 24px;
+    }
+
+    .gallery-thumbnails {
+        height: 60px;
+        gap: 6px;
+        padding: 0 10px;
+    }
+
+    .gallery-thumb {
+        width: 50px;
+        height: 50px;
+    }
+
+    /* Photo viewer empty state */
+    .photo-viewer-empty .icon {
+        font-size: 40px;
+    }
+
+    .photo-viewer-empty div:last-child {
+        font-size: 12px;
+    }
+}
