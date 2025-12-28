@@ -566,9 +566,6 @@ function transitionToPhoto() {
             title = `${currentVisit.city}, ${currentVisit.country}`;
         }
 
-        // Update image
-        img.src = `photos/${photoPath}`;
-
         // Update info
         const titleEl = photoViewer.querySelector('.photo-viewer-title');
         const dateEl = photoViewer.querySelector('.photo-viewer-date');
@@ -585,10 +582,19 @@ function transitionToPhoto() {
         highlightTimelinePhoto(photoPath);
         highlightMarker(visit);
 
-        // Fade in
-        setTimeout(() => {
+        // Preload new image, then fade in
+        const newSrc = `photos/${photoPath}`;
+        const preloadImg = new Image();
+        preloadImg.onload = () => {
+            img.src = newSrc;
             img.style.opacity = '1';
-        }, 50);
+        };
+        preloadImg.onerror = () => {
+            // Still show even if error
+            img.src = newSrc;
+            img.style.opacity = '1';
+        };
+        preloadImg.src = newSrc;
     }, 300);
 }
 
