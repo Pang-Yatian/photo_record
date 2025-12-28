@@ -54,7 +54,7 @@ let isGlobalGallery = false;
 // Autoplay state
 let autoplayInterval = null;
 let isAutoplayActive = false;
-const AUTOPLAY_DELAY = 3000; // 3 seconds per photo
+const AUTOPLAY_DELAY = 5500; // 5.5 seconds per photo
 
 // Hover preview state
 let isHoverPinned = false;
