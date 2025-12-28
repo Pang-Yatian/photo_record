@@ -54,7 +54,7 @@ let isGlobalGallery = false;
 // Autoplay state
 let autoplayInterval = null;
 let isAutoplayActive = false;
-const AUTOPLAY_DELAY = 5500; // 5.5 seconds per photo
+const AUTOPLAY_DELAY = 6500; // 6.5 seconds per photo
 
 // Hover preview state
 let isHoverPinned = false;
@@ -582,18 +582,26 @@ function transitionToPhoto() {
         highlightTimelinePhoto(photoPath);
         highlightMarker(visit);
 
+        // Hide image completely while changing src
+        img.style.visibility = 'hidden';
+
         // Preload new image, then fade in
         const newSrc = `photos/${photoPath}`;
         const preloadImg = new Image();
-        preloadImg.onload = () => {
+
+        const showImage = () => {
             img.src = newSrc;
-            img.style.opacity = '1';
+            // Wait for browser to update, then show
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    img.style.visibility = 'visible';
+                    img.style.opacity = '1';
+                });
+            });
         };
-        preloadImg.onerror = () => {
-            // Still show even if error
-            img.src = newSrc;
-            img.style.opacity = '1';
-        };
+
+        preloadImg.onload = showImage;
+        preloadImg.onerror = showImage;
         preloadImg.src = newSrc;
     }, 300);
 }
