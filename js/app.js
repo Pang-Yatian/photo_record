@@ -517,8 +517,8 @@ function startAutoplay() {
     isAutoplayActive = true;
     updateAutoplayButton();
 
-    // Preload next images immediately
-    preloadNextImages(3);
+    // Preload next 5 images immediately for smooth start
+    preloadNextImages(5);
 
     // Use setTimeout chain instead of setInterval for consistent timing
     function scheduleNext() {
@@ -532,8 +532,8 @@ function startAutoplay() {
                 currentPhotoIndex = 0;
             }
 
-            // Preload next images
-            preloadNextImages(3);
+            // Preload next images before transition
+            preloadNextImages(5);
 
             transitionToPhoto(() => {
                 // Schedule next only after transition completes
@@ -556,7 +556,7 @@ function stopAutoplay() {
 }
 
 // Preload next N images for smooth transitions
-function preloadNextImages(count = 3) {
+function preloadNextImages(count = 5) {
     if (filteredPhotos.length === 0) return;
 
     for (let i = 1; i <= count; i++) {
@@ -581,9 +581,9 @@ function preloadNextImages(count = 3) {
     }
 
     // Clean up old preloaded images (keep only recent ones)
-    if (preloadedImages.size > 10) {
+    if (preloadedImages.size > 15) {
         const keys = Array.from(preloadedImages.keys());
-        for (let i = 0; i < keys.length - 10; i++) {
+        for (let i = 0; i < keys.length - 15; i++) {
             preloadedImages.delete(keys[i]);
         }
     }
@@ -606,73 +606,81 @@ function transitionToPhoto(callback) {
         return;
     }
 
-    // Fade out
-    img.style.transition = 'opacity 0.3s ease-out';
-    img.style.opacity = '0';
+    // Get new photo info
+    const item = filteredPhotos[currentPhotoIndex];
+    const photo = item.photo;
+    const photoPath = typeof photo === 'string' ? photo : photo.path;
+    const photoDate = typeof photo === 'string' ? '' : (photo.date || '');
+    const newSrc = `photos/${photoPath}`;
 
-    setTimeout(() => {
-        // Update content
-        const item = filteredPhotos[currentPhotoIndex];
-        const photo = item.photo;
-        const photoPath = typeof photo === 'string' ? photo : photo.path;
-        const photoDate = typeof photo === 'string' ? '' : (photo.date || '');
+    let title, visit;
+    if (isGlobalGallery) {
+        visit = item.visit;
+        title = `${visit.city}, ${visit.country}`;
+    } else {
+        visit = currentVisit;
+        title = `${currentVisit.city}, ${currentVisit.country}`;
+    }
 
-        let title, visit;
-        if (isGlobalGallery) {
-            visit = item.visit;
-            title = `${visit.city}, ${visit.country}`;
-        } else {
-            visit = currentVisit;
-            title = `${currentVisit.city}, ${currentVisit.country}`;
-        }
+    // Update info immediately (doesn't cause visual issues)
+    const titleEl = photoViewer.querySelector('.photo-viewer-title');
+    const dateEl = photoViewer.querySelector('.photo-viewer-date');
+    if (titleEl) titleEl.textContent = title;
+    if (dateEl) dateEl.textContent = `${photoDate} · ${currentPhotoIndex + 1}/${filteredPhotos.length}`;
 
-        // Update info
-        const titleEl = photoViewer.querySelector('.photo-viewer-title');
-        const dateEl = photoViewer.querySelector('.photo-viewer-date');
-        if (titleEl) titleEl.textContent = title;
-        if (dateEl) dateEl.textContent = `${photoDate} · ${currentPhotoIndex + 1}/${filteredPhotos.length}`;
+    // Update nav buttons
+    const prevBtn = photoViewer.querySelector('.photo-viewer-nav.prev');
+    const nextBtn = photoViewer.querySelector('.photo-viewer-nav.next');
+    if (prevBtn) prevBtn.disabled = currentPhotoIndex === 0;
+    if (nextBtn) nextBtn.disabled = currentPhotoIndex === filteredPhotos.length - 1;
 
-        // Update nav buttons
-        const prevBtn = photoViewer.querySelector('.photo-viewer-nav.prev');
-        const nextBtn = photoViewer.querySelector('.photo-viewer-nav.next');
-        if (prevBtn) prevBtn.disabled = currentPhotoIndex === 0;
-        if (nextBtn) nextBtn.disabled = currentPhotoIndex === filteredPhotos.length - 1;
+    // Highlight timeline and marker
+    highlightTimelinePhoto(photoPath);
+    highlightMarker(visit);
 
-        // Highlight timeline and marker
-        highlightTimelinePhoto(photoPath);
-        highlightMarker(visit);
+    // Function to perform the actual transition once image is ready
+    const performTransition = () => {
+        // Fade out current image
+        img.style.transition = 'opacity 0.25s ease-out';
+        img.style.opacity = '0';
 
-        // Hide image completely while changing src
-        img.style.visibility = 'hidden';
-
-        const newSrc = `photos/${photoPath}`;
-
-        // Check if already preloaded
-        const preloaded = preloadedImages.get(newSrc);
-
-        const showImage = () => {
+        // After fade out, swap and fade in
+        setTimeout(() => {
             img.src = newSrc;
-            // Wait for browser to update, then show
+            // Use double RAF to ensure browser has updated
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    img.style.visibility = 'visible';
+                    img.style.transition = 'opacity 0.25s ease-in';
                     img.style.opacity = '1';
                     if (callback) callback();
                 });
             });
+        }, 250);
+    };
+
+    // Check if image is already preloaded and ready
+    const preloaded = preloadedImages.get(newSrc);
+
+    if (preloaded && preloaded.complete && preloaded.naturalWidth > 0) {
+        // Image is fully loaded, transition immediately
+        performTransition();
+    } else {
+        // Need to ensure image is loaded before transitioning
+        const preloadImg = preloaded || new Image();
+
+        const onReady = () => {
+            preloadedImages.set(newSrc, preloadImg);
+            performTransition();
         };
 
-        if (preloaded && preloaded.complete) {
-            // Image already loaded, show immediately
-            showImage();
+        if (preloadImg.complete && preloadImg.naturalWidth > 0) {
+            onReady();
         } else {
-            // Need to load/wait for image
-            const preloadImg = preloaded || new Image();
-            preloadImg.onload = showImage;
-            preloadImg.onerror = showImage;
+            preloadImg.onload = onReady;
+            preloadImg.onerror = onReady; // Still transition even on error
             if (!preloaded) preloadImg.src = newSrc;
         }
-    }, 300);
+    }
 }
 
 // Highlight photo in timeline
