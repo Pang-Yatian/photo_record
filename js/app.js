@@ -740,6 +740,40 @@ function buildGlobalPhotoList() {
     allPhotosGlobal.sort((a, b) => b.date.localeCompare(a.date));
 }
 
+// Build country flags in chronological order (earliest first)
+function buildCountryFlags() {
+    const flagsContainer = document.getElementById('map-title-flags');
+    if (!flagsContainer) return;
+
+    // Get earliest photo date for each country
+    const countryDates = {};
+    visits.forEach(visit => {
+        if (!visit.countryCode || !visit.photos) return;
+
+        visit.photos.forEach(photo => {
+            const date = typeof photo === 'string' ? '' : (photo.date || '');
+            if (!date) return;
+
+            if (!countryDates[visit.countryCode] || date < countryDates[visit.countryCode].date) {
+                countryDates[visit.countryCode] = {
+                    date,
+                    country: visit.country
+                };
+            }
+        });
+    });
+
+    // Sort countries by earliest visit date (oldest first)
+    const sortedCountries = Object.entries(countryDates)
+        .sort((a, b) => a[1].date.localeCompare(b[1].date))
+        .map(([code, data]) => ({ code, country: data.country }));
+
+    // Generate flag images
+    flagsContainer.innerHTML = sortedCountries.map(({ code, country }) =>
+        `<img src="${getFlagUrl(code)}" alt="${country}" title="${country}" onerror="this.style.display='none'">`
+    ).join('');
+}
+
 // Open gallery for a single city
 function openCityGallery(visit) {
     if (!visit.photos || visit.photos.length === 0) return;
@@ -1002,6 +1036,7 @@ async function loadData() {
         createMarkers();
         buildTimeline();
         buildGlobalPhotoList();
+        buildCountryFlags();
 
         // Start autoplay by default
         if (allPhotosGlobal.length > 0) {
