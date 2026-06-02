@@ -269,23 +269,11 @@ function getThumbUrl(photoPath) {
     return `photos/thumbs/${folder}/${thumbFilename}`;
 }
 
-// Sort photos by date (newest first)
-function getSortedPhotos(photos) {
-    if (!photos || photos.length === 0) return [];
-    return [...photos].sort((a, b) => {
-        const dateA = typeof a === 'string' ? '' : (a.date || '');
-        const dateB = typeof b === 'string' ? '' : (b.date || '');
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateB.localeCompare(dateA);
-    });
-}
-
 // Build HTML for a single city's preview
 function buildCityPreviewHTML(visit, index = 0) {
     if (!visit.photos || visit.photos.length === 0) return '';
 
-    const sortedPhotos = getSortedPhotos(visit.photos);
+    const sortedPhotos = sortPhotosNewestFirst(visit.photos);
     const maxVisible = 4;  // Fewer photos per city when showing multiple
     const photos = sortedPhotos.slice(0, Math.min(maxVisible, sortedPhotos.length));
     const remainingCount = sortedPhotos.length - maxVisible;
@@ -347,7 +335,7 @@ function showMultiHoverPreview(screenPosition, visitsToShow, pinned = false) {
 function showHoverPreview(screenPosition, visit) {
     if (!visit.photos || visit.photos.length === 0) return;
 
-    const sortedPhotos = getSortedPhotos(visit.photos);
+    const sortedPhotos = sortPhotosNewestFirst(visit.photos);
     const maxVisible = 8;
     const photos = sortedPhotos.slice(0, Math.min(maxVisible, sortedPhotos.length));
     const remainingCount = sortedPhotos.length - maxVisible;
@@ -399,13 +387,7 @@ function showInViewer(visit, startIndex = 0) {
     isGlobalGallery = false;
 
     let photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
-    photosToShow.sort((a, b) => {
-        const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
-        const dateB = typeof b.photo === 'string' ? '' : (b.photo.date || '');
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateB.localeCompare(dateA);
-    });
+    photosToShow.sort((a, b) => comparePhotos(a.photo, b.photo));
 
     filteredPhotos = photosToShow;
     currentPhotoIndex = startIndex;
@@ -737,7 +719,7 @@ function buildGlobalPhotoList() {
             });
         });
     });
-    allPhotosGlobal.sort((a, b) => b.date.localeCompare(a.date));
+    allPhotosGlobal.sort(compareGlobalPhotos);
 }
 
 // Build country flags in chronological order (earliest first)
@@ -782,13 +764,7 @@ function openCityGallery(visit) {
     currentVisit = visit;
 
     let photosToShow = visit.photos.map((p, i) => ({ photo: p, originalIndex: i }));
-    photosToShow.sort((a, b) => {
-        const dateA = typeof a.photo === 'string' ? '' : (a.photo.date || '');
-        const dateB = typeof b.photo === 'string' ? '' : (b.photo.date || '');
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateB.localeCompare(dateA);
-    });
+    photosToShow.sort((a, b) => comparePhotos(a.photo, b.photo));
 
     filteredPhotos = photosToShow;
     currentPhotoIndex = 0;
@@ -935,13 +911,13 @@ function buildTimeline() {
             entries.push({
                 visit,
                 date,
-                photos: dateMap[date].photos,
+                photos: sortPhotosNewestFirst(dateMap[date].photos),
                 firstPhotoIndex: dateMap[date].firstPhotoIndex
             });
         });
     });
 
-    entries.sort((a, b) => b.date.localeCompare(a.date));
+    entries.sort(compareTimelineEntries);
     timeline.entries = entries;
 
     let html = '';

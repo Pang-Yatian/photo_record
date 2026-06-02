@@ -63,6 +63,14 @@
         {
           "path": "singapore/IMG-3244-1767322591157.jpeg",
           "date": "2026-01"
+        },
+        {
+          "path": "singapore/IMG-4883-1780378908850.jpg",
+          "date": "2026-05"
+        },
+        {
+          "path": "singapore/IMG-4889-1780378909208.jpg",
+          "date": "2026-05"
         }
       ]
     },
@@ -348,6 +356,18 @@
         {
           "path": "tokyo/fxn-2025-10-15-171048-538-1766660289709.jpeg",
           "date": "2025-10"
+        },
+        {
+          "path": "tokyo/fxn-2026-05-26-17444252C5B6C46F7B-1780378950285.JPG",
+          "date": "2026-05"
+        },
+        {
+          "path": "tokyo/fxn-2026-05-26-153758576CE78F77B1-1780378950320.JPG",
+          "date": "2026-05"
+        },
+        {
+          "path": "tokyo/IMG-5018-1780378950673.jpg",
+          "date": "2026-05"
         }
       ]
     },
@@ -435,6 +455,57 @@
         {
           "path": "bangkok/IMG-3054-1766661655413.jpeg",
           "date": "2025-12"
+        }
+      ]
+    },
+    {
+      "city": "Taipei",
+      "country": "Taiwan",
+      "countryCode": "TW",
+      "lat": 25.0375198,
+      "lng": 121.5636796,
+      "photos": [
+        {
+          "path": "taipei/IMG-3762-1780378426392.jpg",
+          "date": "2026-03"
+        },
+        {
+          "path": "taipei/IMG-3796-1780378426680.jpg",
+          "date": "2026-03"
+        }
+      ]
+    },
+    {
+      "city": "San Francisco",
+      "country": "United States",
+      "countryCode": "US",
+      "lat": 37.7879363,
+      "lng": -122.4075201,
+      "photos": [
+        {
+          "path": "san-francisco/IMG-5041-1780378988886.jpg",
+          "date": "2026-05"
+        },
+        {
+          "path": "san-francisco/IMG-5184-1780378988950.jpg",
+          "date": "2026-05"
+        }
+      ]
+    },
+    {
+      "city": "Santa Clara",
+      "country": "United States",
+      "countryCode": "US",
+      "lat": 37.3541132,
+      "lng": -121.955174,
+      "photos": [
+        {
+          "path": "santa-clara/IMG-5070-1780379070678.jpg",
+          "date": "2026-05"
+        },
+        {
+          "path": "santa-clara/IMG-5076-1780379071085.jpg",
+          "date": "2026-05"
         }
       ]
     }
