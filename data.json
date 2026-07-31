@@ -71,6 +71,10 @@
         {
           "path": "singapore/IMG-4889-1780378909208.jpg",
           "date": "2026-05"
+        },
+        {
+          "path": "singapore/4edb7dfe0207253dc7cc0469fd19fd-1785507823019.jpg",
+          "date": "2026-07"
         }
       ]
     },
@@ -506,6 +510,70 @@
         {
           "path": "santa-clara/IMG-5076-1780379071085.jpg",
           "date": "2026-05"
+        }
+      ]
+    },
+    {
+      "city": "Denver",
+      "country": "United States",
+      "countryCode": "US",
+      "lat": 39.7392364,
+      "lng": -104.984862,
+      "photos": [
+        {
+          "path": "denver/5a0f456a0cb662caf85009d4ef93b0-1785507523619.jpg",
+          "date": "2026-06"
+        },
+        {
+          "path": "denver/e712daea7a7401aa5378e9e32a80cd-1785507523681.jpg",
+          "date": "2026-06"
+        }
+      ]
+    },
+    {
+      "city": "Melbourne",
+      "country": "Australia",
+      "countryCode": "AU",
+      "lat": -37.6667554,
+      "lng": 144.8288501,
+      "photos": [
+        {
+          "path": "melbourne/0a1f12b9798bfe24d09661c338e213-1785507699658.jpg",
+          "date": "2026-06"
+        }
+      ]
+    },
+    {
+      "city": "Sydney",
+      "country": "Australia",
+      "countryCode": "AU",
+      "lat": -33.9498935,
+      "lng": 151.1819682,
+      "photos": [
+        {
+          "path": "sydney/7e975d05f6f39b89951fb466d99daa-1785507729690.jpg",
+          "date": "2026-06"
+        },
+        {
+          "path": "sydney/62f657d840885a6a6358cf15b1f75e-1785507729708.jpg",
+          "date": "2026-06"
+        },
+        {
+          "path": "sydney/958235ec8c96b8952357706d8a089b-1785507729717.jpg",
+          "date": "2026-06"
+        }
+      ]
+    },
+    {
+      "city": "Brisbane",
+      "country": "Australia",
+      "countryCode": "AU",
+      "lat": -27.4689623,
+      "lng": 153.0235009,
+      "photos": [
+        {
+          "path": "brisbane/d88e61c53642c2285712bbb8acf954-1785507775309.jpg",
+          "date": "2026-06"
         }
       ]
     }
