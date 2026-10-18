@@ -18,18 +18,24 @@
     </div>
 
     <!-- Map - right side -->
-    <div id="map">
+    <div class="map-panel">
         <div class="map-title">
             <div class="map-title-main">Gallery</div>
             <div class="map-title-sub">Welcome to my gallery! Beyond work and research, I'm an active player of World Online, constantly exploring the global map. Here is a collection of moments from my journeys around the world.</div>
             <div id="map-title-flags" class="map-title-flags"></div>
         </div>
-    </div>
+        <div id="map"></div>
+        <div id="place-card" class="place-card" aria-live="polite" hidden>
+            <div class="place-card-label">Current place</div>
+            <div id="place-card-title" class="place-card-title"></div>
+            <div id="place-card-meta" class="place-card-meta"></div>
+        </div>
 
-    <!-- Zoom Controls -->
-    <div id="zoom-controls" class="zoom-controls">
-        <button id="zoom-in" class="zoom-btn">+</button>
-        <button id="zoom-out" class="zoom-btn">−</button>
+        <!-- Zoom Controls -->
+        <div id="zoom-controls" class="zoom-controls">
+            <button id="zoom-in" class="zoom-btn">+</button>
+            <button id="zoom-out" class="zoom-btn">−</button>
+        </div>
     </div>
 
     <!-- Hover Preview -->

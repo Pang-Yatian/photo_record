@@ -38,10 +38,11 @@ const numericToAlpha2 = {
 // State
 let visitedCountryCodes = new Set();
 let visits = [];
-let markers = [];
+let selectedVisit = null;
+let selectedPhotoDate = '';
 
-// Overlap detection for hover preview
-const OVERLAP_DISTANCE = 9;   // Pixels - markers closer than this are grouped
+// Group markers that would overlap at the current zoom level.
+const OVERLAP_DISTANCE = 7;
 
 // Gallery state
 let currentVisit = null;
@@ -70,6 +71,7 @@ const galleryTitle = document.getElementById('gallery-title');
 const galleryDate = document.getElementById('gallery-date');
 const galleryThumbnails = document.getElementById('gallery-thumbnails');
 const timeline = document.getElementById('timeline');
+const placeCard = document.getElementById('place-card');
 
 // Initialize D3 Map
 async function initMap() {
@@ -136,13 +138,8 @@ async function initMap() {
 // Handle zoom/pan
 function handleZoom(event) {
     g.attr('transform', event.transform);
-
-    // Scale markers inversely to maintain consistent size
-    const k = event.transform.k;
-    g.selectAll('.city-marker')
-        .attr('r', 7 / k)
-        .attr('stroke-width', 2 / k);
-
+    if (hoverPreview.classList.contains('visible')) hideHoverPreview();
+    if (visits.length) createMarkers();
 }
 
 // Highlight visited countries
@@ -156,78 +153,61 @@ function highlightCountries() {
         });
 }
 
-// Find overlapping markers (within OVERLAP_DISTANCE pixels, adjusted for zoom)
+// Find nearby places in projected screen space; split them as the user zooms in.
 function findOverlappingMarkers() {
     const clusters = [];
     const assigned = new Set();
-
-    // Get current zoom scale - at higher zoom, markers appear further apart
-    const transform = d3.zoomTransform(svg.node());
-    const k = transform.k;
-
-    // Effective distance threshold (at zoom 2x, markers are 2x further apart visually)
+    const k = d3.zoomTransform(svg.node()).k;
     const effectiveDistance = OVERLAP_DISTANCE / k;
+    const positions = visits.map((visit, index) => ({
+        index,
+        visit,
+        point: projection([visit.lng, visit.lat])
+    }));
 
-    visits.forEach((visit, i) => {
+    positions.forEach((start, i) => {
         if (assigned.has(i)) return;
-
-        const [x1, y1] = projection([visit.lng, visit.lat]);
-        const cluster = [{ index: i, visit, x: x1, y: y1 }];
+        const cluster = [start];
         assigned.add(i);
 
-        visits.forEach((other, j) => {
-            if (i === j || assigned.has(j)) return;
-
-            const [x2, y2] = projection([other.lng, other.lat]);
-            const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-
-            if (distance < effectiveDistance) {
-                cluster.push({ index: j, visit: other, x: x2, y: y2 });
-                assigned.add(j);
-            }
-        });
-
+        // Include connected nearby places so one cluster never hides another.
+        for (let member = 0; member < cluster.length; member++) {
+            positions.forEach((candidate, j) => {
+                if (assigned.has(j)) return;
+                const distance = Math.hypot(
+                    candidate.point[0] - cluster[member].point[0],
+                    candidate.point[1] - cluster[member].point[1]
+                );
+                if (distance < effectiveDistance) {
+                    cluster.push(candidate);
+                    assigned.add(j);
+                }
+            });
+        }
         clusters.push(cluster);
     });
 
     return clusters;
 }
 
-// Create markers for cities
+// Draw one marker for each visible place or group of nearby places.
 function createMarkers() {
-    // Clear existing markers
-    g.selectAll('.city-marker').remove();
+    g.selectAll('.map-marker').remove();
+    const k = d3.zoomTransform(svg.node()).k;
 
-    // Get current zoom scale for proper marker sizing
-    const transform = d3.zoomTransform(svg.node());
-    const k = transform.k;
-
-    // Add markers for each visit
-    visits.forEach((visit, index) => {
-        const [x, y] = projection([visit.lng, visit.lat]);
-
-        g.append('circle')
-            .attr('class', 'city-marker')
-            .attr('cx', x)
-            .attr('cy', y)
-            .attr('r', 7 / k)
-            .attr('stroke-width', 2 / k)
-            .attr('data-index', index)
+    findOverlappingMarkers().forEach(cluster => {
+        const [x, y] = cluster[0].point;
+        const groupedVisits = cluster.map(item => item.visit);
+        const marker = g.append('g')
+            .attr('class', 'map-marker')
+            .attr('transform', `translate(${x},${y})`)
             .on('mouseenter', function(event) {
-                if (isHoverPinned) return; // Don't change hover if pinned
-
+                if (isHoverPinned) return;
                 const [mx, my] = d3.pointer(event, svg.node());
-
-                // Check if this marker overlaps with others
-                const clusters = findOverlappingMarkers();
-                const cluster = clusters.find(c => c.some(m => m.index === index));
-
-                if (cluster && cluster.length > 1) {
-                    // Show all cities in the cluster
-                    const visitsToShow = cluster.map(m => m.visit);
-                    showMultiHoverPreview({ x: mx, y: my }, visitsToShow);
+                if (cluster.length > 1) {
+                    showMultiHoverPreview({ x: mx, y: my }, groupedVisits);
                 } else {
-                    showHoverPreview({ x: mx, y: my }, visit);
+                    showHoverPreview({ x: mx, y: my }, groupedVisits[0]);
                 }
             })
             .on('mouseleave', function() {
@@ -235,23 +215,34 @@ function createMarkers() {
             })
             .on('click', function(event) {
                 event.stopPropagation();
-
-                // Check if this marker overlaps with others
-                const clusters = findOverlappingMarkers();
-                const cluster = clusters.find(c => c.some(m => m.index === index));
-
-                if (cluster && cluster.length > 1) {
-                    // Pin the hover preview for user to select
+                if (cluster.length > 1) {
                     const [mx, my] = d3.pointer(event, svg.node());
-                    showMultiHoverPreview({ x: mx, y: my }, cluster.map(m => m.visit), true);
+                    showMultiHoverPreview({ x: mx, y: my }, groupedVisits, true);
                 } else {
-                    // Single marker - open directly
                     hideHoverPreview();
                     stopAutoplay();
                     updateAutoplayButton();
-                    showInViewer(visit);
+                    showInViewer(groupedVisits[0]);
                 }
             });
+
+        marker.append('circle')
+            .attr('class', 'city-marker')
+            .classed('cluster-marker', cluster.length > 1)
+            .classed('active-marker', cluster.some(item => item.visit === selectedVisit))
+            .attr('r', 6 / k)
+            .attr('stroke-width', 1.5 / k);
+
+        if (cluster.length > 1) {
+            marker.append('text')
+                .attr('class', 'cluster-count')
+                .attr('font-size', 8 / k)
+                .text(cluster.length);
+        }
+
+        marker.append('title').text(cluster.length > 1
+            ? `${cluster.length} nearby places: ${groupedVisits.map(visit => visit.city).join(', ')}`
+            : `${groupedVisits[0].city}, ${groupedVisits[0].country}`);
     });
 }
 
@@ -326,6 +317,12 @@ function showMultiHoverPreview(screenPosition, visitsToShow, pinned = false) {
     hoverPreview.classList.add('visible');
     if (pinned) {
         hoverPreview.classList.add('pinned');
+        const previewHeight = hoverPreview.getBoundingClientRect().height;
+        const top = Math.max(8, Math.min(
+            mapRect.top + screenPosition.y + 15,
+            window.innerHeight - previewHeight - 8
+        ));
+        hoverPreview.style.top = `${top}px`;
         justPinned = true;
         setTimeout(() => { justPinned = false; }, 100);
     }
@@ -456,7 +453,7 @@ function renderViewer() {
     highlightTimelinePhoto(photoPath);
 
     // Highlight marker on map
-    highlightMarker(visit);
+    highlightMarker(visit, photoDate);
 
     // Add event listeners
     photoViewer.querySelector('.photo-viewer-nav.prev')?.addEventListener('click', () => {
@@ -618,7 +615,7 @@ function transitionToPhoto(callback) {
 
     // Highlight timeline and marker
     highlightTimelinePhoto(photoPath);
-    highlightMarker(visit);
+    highlightMarker(visit, photoDate);
 
     // Function to perform the actual transition once image is ready
     const performTransition = () => {
@@ -680,27 +677,24 @@ function highlightTimelinePhoto(photoPath) {
     }
 }
 
-// Highlight marker on map (including overlapping markers in the same cluster)
-function highlightMarker(visit) {
-    // Remove previous highlight
-    g.selectAll('.city-marker').classed('active-marker', false);
+// Highlight the selected place and show its details below the map.
+function highlightMarker(visit, photoDate = '') {
+    selectedVisit = visit;
+    selectedPhotoDate = photoDate;
+    createMarkers();
 
-    const index = visits.indexOf(visit);
-    if (index < 0) return;
-
-    // Find clusters and check if this visit is in an overlapping cluster
-    const clusters = findOverlappingMarkers();
-    const cluster = clusters.find(c => c.some(m => m.index === index));
-
-    if (cluster && cluster.length > 1) {
-        // Highlight all markers in the overlapping cluster
-        cluster.forEach(m => {
-            g.select(`.city-marker[data-index="${m.index}"]`).classed('active-marker', true);
-        });
-    } else {
-        // Single marker - just highlight it
-        g.select(`.city-marker[data-index="${index}"]`).classed('active-marker', true);
+    if (!visit) {
+        placeCard.hidden = true;
+        return;
     }
+
+    document.getElementById('place-card-title').textContent = `${visit.city}, ${visit.country}`;
+    const photoCount = visit.photos?.length || 0;
+    document.getElementById('place-card-meta').textContent = [
+        selectedPhotoDate,
+        `${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`
+    ].filter(Boolean).join(' · ');
+    placeCard.hidden = false;
 }
 
 // Build global photo list from all visits
@@ -1131,14 +1125,7 @@ function handleResize() {
     }
 
     g.selectAll('.country').attr('d', path);
-    g.selectAll('.city-marker').each(function() {
-        const index = +d3.select(this).attr('data-index');
-        const visit = visits[index];
-        if (visit) {
-            const [x, y] = projection([visit.lng, visit.lat]);
-            d3.select(this).attr('cx', x).attr('cy', y);
-        }
-    });
+    if (visits.length) createMarkers();
 }
 
 window.addEventListener('resize', handleResize);
