@@ -327,6 +327,10 @@
         {
           "path": "hangzhou-city/IMG-2717-1766660076783.jpeg",
           "date": "2025-12"
+        },
+        {
+          "path": "hangzhou-city/dab4fe088b1584c88f61d9742491dc-1792308860367.jpg",
+          "date": "2026-08"
         }
       ]
     },
@@ -574,6 +578,48 @@
         {
           "path": "brisbane/d88e61c53642c2285712bbb8acf954-1785507775309.jpg",
           "date": "2026-06"
+        }
+      ]
+    },
+    {
+      "city": "Bali",
+      "country": "Indonesia",
+      "countryCode": "ID",
+      "lat": -8.2271303,
+      "lng": 115.1919203,
+      "photos": [
+        {
+          "path": "bali/0a1ad8c657660bb79bf0f96d6a321c-1792308893344.jpg",
+          "date": "2026-09"
+        },
+        {
+          "path": "bali/759db2ddd69a63ebca5ae8e0aef69b-1792308893356.jpg",
+          "date": "2026-09"
+        },
+        {
+          "path": "bali/d120582bb4d782c21e4bbd278b0172-1792308893364.jpg",
+          "date": "2026-09"
+        }
+      ]
+    },
+    {
+      "city": "Perth",
+      "country": "Australia",
+      "countryCode": "AU",
+      "lat": -31.9558967,
+      "lng": 115.8605784,
+      "photos": [
+        {
+          "path": "perth/17ade72343bbd4d4c4108b6bf9c8e5-1792308933241.jpg",
+          "date": "2026-10"
+        },
+        {
+          "path": "perth/17d21270af8f9bca2f201a8f2d577a-1792308933252.jpg",
+          "date": "2026-10"
+        },
+        {
+          "path": "perth/fdde0ab97cd88b580b1bb75ffc9e90-1792308933261.jpg",
+          "date": "2026-10"
         }
       ]
     }
