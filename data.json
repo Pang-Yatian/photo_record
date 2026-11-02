@@ -622,6 +622,36 @@
           "date": "2026-10"
         }
       ]
+    },
+    {
+      "city": "Phnom Penh",
+      "country": "Cambodia",
+      "countryCode": "KH",
+      "lat": 11.5730391,
+      "lng": 104.857807,
+      "photos": [
+        {
+          "path": "phnom-penh/6ae0f5e72d438e7664728e0eee8c72-1793607484574.jpg",
+          "date": "2026-10"
+        }
+      ]
+    },
+    {
+      "city": "Ho Chi Minh City",
+      "country": "Vietnam",
+      "countryCode": "VN",
+      "lat": 10.7555483,
+      "lng": 106.6750019,
+      "photos": [
+        {
+          "path": "ho-chi-minh-city/89873c387f930d3302874d0d55bab0-1793607520334.jpg",
+          "date": "2026-11"
+        },
+        {
+          "path": "ho-chi-minh-city/ee31bcb509c170e4b5e5578861d407-1793607520356.jpg",
+          "date": "2026-11"
+        }
+      ]
     }
   ]
 }
