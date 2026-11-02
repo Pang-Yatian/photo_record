@@ -15,8 +15,8 @@ function getUploadTimestamp(photo) {
 }
 
 function comparePhotos(a, b) {
-    const dateA = getPhotoDate(a);
-    const dateB = getPhotoDate(b);
+    const dateA = getPhotoDate(a).substring(0, 7);
+    const dateB = getPhotoDate(b).substring(0, 7);
     if (dateA !== dateB) {
         if (!dateA) return 1;
         if (!dateB) return -1;
@@ -30,61 +30,18 @@ function sortPhotosNewestFirst(photos) {
     return [...photos].sort(comparePhotos);
 }
 
-const REGION_ORDER = {
-    oceania: 0,
-    americas: 1,
-    asia: 2,
-    middle_east: 3,
-    europe: 4
-};
-
-function getRegion(visit) {
-    const cc = visit.countryCode;
-    if (['AU', 'NZ', 'FJ', 'PG', 'NC'].includes(cc)) return 'oceania';
-    if (['US', 'CA', 'MX'].includes(cc)) return 'americas';
-    if (['JP', 'SG', 'CN', 'KR', 'TH', 'TW', 'MY', 'ID', 'MV', 'PH', 'VN', 'IN'].includes(cc)) {
-        return 'asia';
-    }
-    if (['AE', 'IL', 'TR', 'QA', 'SA'].includes(cc)) return 'middle_east';
-    return 'europe';
+/** Latest upload in this city/month group, independent of the photo array order. */
+function getLatestUploadTimestamp(photos) {
+    return (photos || []).reduce((latest, photo) => Math.max(latest, getUploadTimestamp(photo)), 0);
 }
 
-/** West→east within region (Melbourne→Sydney→Brisbane, SF→Denver, etc.) */
-function compareLngInRegion(a, b, region) {
-    if (region === 'asia') return b.lng - a.lng;
-    return a.lng - b.lng;
-}
-
-function compareVisitsWestToEast(a, b) {
-    const regionA = getRegion(a);
-    const regionB = getRegion(b);
-    const regionCmp = REGION_ORDER[regionA] - REGION_ORDER[regionB];
-    if (regionCmp !== 0) return regionCmp;
-    return compareLngInRegion(a, b, regionA);
-}
-
-/**
- * Timeline (left = newest month):
- * 1. Month descending
- * 2. Same month: Oceania → Americas → Asia (so AU Jun before Denver, Denver sits next to May SF)
- * 3. Within region: geographic order
- */
+/** Timeline: newest month first; within a month, latest uploaded city group first. */
 function compareTimelineEntries(a, b) {
     const monthCmp = b.date.substring(0, 7).localeCompare(a.date.substring(0, 7));
     if (monthCmp !== 0) return monthCmp;
-
-    const regionA = getRegion(a.visit);
-    const regionB = getRegion(b.visit);
-    const regionCmp = REGION_ORDER[regionA] - REGION_ORDER[regionB];
-    if (regionCmp !== 0) return regionCmp;
-
-    return compareLngInRegion(a.visit, b.visit, regionA);
+    return getLatestUploadTimestamp(b.photos) - getLatestUploadTimestamp(a.photos);
 }
 
 function compareGlobalPhotos(a, b) {
-    const dateCmp = b.date.localeCompare(a.date);
-    if (dateCmp !== 0) return dateCmp;
-    const visitCmp = compareVisitsWestToEast(a.visit, b.visit);
-    if (visitCmp !== 0) return visitCmp;
-    return getUploadTimestamp(b.photo) - getUploadTimestamp(a.photo);
+    return comparePhotos(a.photo, b.photo);
 }
